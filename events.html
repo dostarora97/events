@@ -1,0 +1,553 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Bangalore · 4th July</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20,300,0,0&icon_names=location_on,schedule" rel="stylesheet" />
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter', 'system-ui', 'sans-serif'],
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    [x-cloak] { display: none !important; }
+    body { background: #f0e8dc; }
+    #bg { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; z-index: 0; pointer-events: none; }
+    .content { position: relative; z-index: 1; }
+    .divider { border-color: rgba(160,148,132,0.35); }
+    /* Layout tokens — text column is roughly max-w-xl (576px = 36rem) */
+    :root {
+      --col-width: 36rem;         /* text column max-width */
+      --fade-buffer: 5rem;        /* buffer inside the column edge before fade begins */
+    }
+
+    /* Edge-fading horizontal divider — spans full viewport, fades ONLY beyond the text column edges */
+    .fade-divider {
+      position: relative;
+    }
+    .event-row + .event-row .fade-divider::before {
+      content: '';
+      position: absolute; top: 0; left: 0; right: 0; height: 1px;
+      background: rgba(160,148,132,0.55);
+      /* Solid from ~text column left edge to ~text column right edge; fade outward */
+      -webkit-mask-image: linear-gradient(
+        to right,
+        transparent 0,
+        black calc(50% - var(--col-width) / 2 - var(--fade-buffer)),
+        black calc(50% + var(--col-width) / 2 + var(--fade-buffer)),
+        transparent 100%
+      );
+      mask-image: linear-gradient(
+        to right,
+        transparent 0,
+        black calc(50% - var(--col-width) / 2 - var(--fade-buffer)),
+        black calc(50% + var(--col-width) / 2 + var(--fade-buffer)),
+        transparent 100%
+      );
+      pointer-events: none;
+      z-index: 2;
+    }
+    .material-symbols-outlined { font-variation-settings: 'opsz' 20, 'wght' 300, 'FILL' 0, 'GRAD' 0; vertical-align: -3px; font-size: 13px; }
+
+    /* Top control bar — hidden unless ?debug=true (JS toggles .visible) */
+    #mode-switch {
+      display: none;
+      position: fixed; top: 12px; left: 12px; right: 12px; z-index: 100;
+      align-items: center; gap: 10px;
+      background: rgba(252,249,244,0.85);
+      backdrop-filter: blur(12px);
+      border: 1px solid rgba(180,165,148,0.30);
+      border-radius: 16px;
+      padding: 8px 14px;
+      font-family: 'Inter', system-ui, sans-serif;
+      font-size: 11px;
+      box-shadow: 0 4px 16px rgba(0,0,0,0.06);
+      flex-wrap: wrap;
+      justify-content: center;
+      row-gap: 4px;
+    }
+    #mode-switch.visible { display: flex; }
+    #mode-switch .group { display: flex; gap: 4px; align-items: center; }
+    #mode-switch .sep-v { width: 1px; height: 18px; background: rgba(180,165,148,0.35); }
+    #mode-switch button {
+      padding: 5px 12px; border-radius: 999px; border: none;
+      background: transparent; color: #7a6e63;
+      cursor: pointer; transition: background 0.15s, color 0.15s;
+      font-family: inherit; letter-spacing: 0.01em;
+    }
+    #mode-switch button:hover { color: #4a4238; background: rgba(180,165,148,0.15); }
+    #mode-switch .slider-group {
+      display: flex; align-items: center; gap: 6px;
+      padding: 0 4px;
+    }
+    #mode-switch .slider-group label {
+      color: #7a6e63; font-size: 10.5px;
+      user-select: none;
+    }
+    #mode-switch input[type=range] {
+      -webkit-appearance: none; appearance: none;
+      width: 70px; height: 3px; border-radius: 2px;
+      background: rgba(180,165,148,0.30);
+      accent-color: #b8a898;
+      cursor: pointer;
+    }
+    /* Narrower sliders on small screens */
+    @media (max-width: 640px) {
+      #mode-switch {
+        gap: 4px 8px;
+        padding: 8px 14px;
+        font-size: 11px;
+      }
+      #mode-switch .slider-group {
+        padding: 0;
+        gap: 10px;
+        flex: 0 0 100%;
+        display: flex;
+      }
+      #mode-switch .slider-group label {
+        flex: 0 0 60px;
+      }
+      #mode-switch input[type=range] {
+        flex: 1;
+        width: auto;
+        min-width: 0;
+      }
+      #mode-switch .val {
+        flex: 0 0 34px;
+      }
+      #mode-switch .sep-v { display: none; }
+      #mode-switch button { padding: 5px 12px; }
+      #mode-switch .toggle {
+        padding: 0; gap: 5px;
+        flex: 0 0 auto;
+      }
+    }
+    #mode-switch input[type=range]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 11px; height: 11px; border-radius: 50%;
+      background: #7a6e63;
+      cursor: pointer;
+    }
+    #mode-switch .val {
+      color: #a89880; font-size: 10px; min-width: 26px;
+      font-variant-numeric: tabular-nums; text-align: right;
+    }
+
+    /* ── Accordion: smooth height + fade using grid-template-rows ── */
+    .accordion {
+      display: grid;
+      grid-template-rows: 0fr;
+      opacity: 0;
+      transition: grid-template-rows 400ms cubic-bezier(0.22, 1, 0.36, 1),
+                  opacity          280ms ease,
+                  margin-top       400ms cubic-bezier(0.22, 1, 0.36, 1);
+      margin-top: 0;
+    }
+    .accordion.open {
+      grid-template-rows: 1fr;
+      opacity: 1;
+      margin-top: 0.75rem;
+    }
+    .accordion > .accordion-inner {
+      overflow: hidden;
+      min-height: 0;
+    }
+
+    /* Row hover / expanded — full-width wash, solid across the text column,
+       fades outward into the outer margins where no text lives. */
+    .event-row .fade-divider {
+      position: relative;
+    }
+    .event-row .fade-divider::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: rgba(255, 253, 248, 0);
+      pointer-events: none;
+      transition: background 300ms ease;
+      -webkit-mask-image: linear-gradient(
+        to right,
+        transparent 0,
+        black calc(50% - var(--col-width) / 2 - var(--fade-buffer)),
+        black calc(50% + var(--col-width) / 2 + var(--fade-buffer)),
+        transparent 100%
+      );
+      mask-image: linear-gradient(
+        to right,
+        transparent 0,
+        black calc(50% - var(--col-width) / 2 - var(--fade-buffer)),
+        black calc(50% + var(--col-width) / 2 + var(--fade-buffer)),
+        transparent 100%
+      );
+      z-index: 0;
+    }
+    .event-row .fade-divider:hover::after,
+    .event-row .fade-divider.is-open::after {
+      background: rgba(255, 253, 248, 0.55);
+    }
+    /* On touch-primary devices (mobile / tablet), the :hover state persists
+       after tap and won't clear until user taps elsewhere — this leaves the
+       wash lingering after the row is collapsed. Disable hover styling there
+       and rely solely on the .is-open class for expanded-state highlighting.
+       Note: :not(.is-open) prevents this rule from suppressing the highlight
+       on the currently-expanded row, which also matches :hover. */
+    @media (hover: none), (pointer: coarse) {
+      .event-row .fade-divider:hover:not(.is-open)::after {
+        background: rgba(255, 253, 248, 0);
+      }
+    }
+    /* Row content sits above the wash */
+    .event-row .fade-divider > * { position: relative; z-index: 1; }
+
+    /* On narrow viewports (mobile), the text column fills the viewport,
+       so scale down the col-width and buffer proportionally so the fade
+       zone still visibly dissolves at both edges. */
+    @media (max-width: 640px) {
+      :root {
+        --col-width: 65vw;
+        --fade-buffer: 4vw;
+      }
+    }
+    #mode-switch .toggle {
+      display: flex; align-items: center; gap: 4px; cursor: pointer;
+      padding: 0 4px; user-select: none; color: #7a6e63;
+    }
+    #mode-switch .toggle input {
+      appearance: none; -webkit-appearance: none;
+      width: 13px; height: 13px; border-radius: 3px;
+      border: 1px solid rgba(180,165,148,0.5);
+      background: rgba(255,255,255,0.4);
+      cursor: pointer; position: relative;
+      margin: 0;
+    }
+    #mode-switch .toggle input:checked {
+      background: #7a6e63; border-color: #7a6e63;
+    }
+    #mode-switch .toggle input:checked::after {
+      content: ''; position: absolute;
+      left: 3px; top: 0.5px;
+      width: 4px; height: 8px;
+      border: solid #fcf9f4;
+      border-width: 0 1.5px 1.5px 0;
+      transform: rotate(45deg);
+    }
+
+    /* HDR text (opt-in via body class) */
+    body.hdr-text .text-stone-800 { color: color(display-p3 0 0 0 / 1); }
+    body.hdr-text .text-stone-700 { color: color(display-p3 0.05 0.04 0.03 / 1); }
+    body.hdr-text .text-stone-600 { color: color(display-p3 0.15 0.13 0.11 / 1); }
+    body.hdr-text .text-stone-500 { color: color(display-p3 0.32 0.29 0.26 / 1); }
+    body.hdr-text .text-stone-400 { color: color(display-p3 0.55 0.51 0.47 / 1); }
+  </style>
+</head>
+<body class="min-h-screen font-sans text-stone-700">
+
+  <canvas id="bg"></canvas>
+
+  <div id="mode-switch">
+    <div class="slider-group" title="Speed — how fast gradients rotate">
+      <label>speed</label>
+      <input type="range" id="s-speed" min="0.1" max="10" step="0.1" value="4.0">
+      <span class="val" id="v-speed">4.0</span>
+    </div>
+    <div class="slider-group" title="Warp — organic edge wobble">
+      <label>warp</label>
+      <input type="range" id="s-warp" min="0" max="4" step="0.1" value="1.5">
+      <span class="val" id="v-warp">1.5</span>
+    </div>
+    <div class="slider-group" title="Scale — noise frequency">
+      <label>scale</label>
+      <input type="range" id="s-scale" min="0.3" max="3" step="0.05" value="2.0">
+      <span class="val" id="v-scale">2.0</span>
+    </div>
+    <div class="slider-group" title="Colour intensity">
+      <label>colour</label>
+      <input type="range" id="s-intensity" min="0.05" max="0.9" step="0.01" value="0.50">
+      <span class="val" id="v-intensity">0.50</span>
+    </div>
+    <div class="sep-v"></div>
+    <div class="slider-group" title="Flow direction rotation — how much the whole flow field turns over time">
+      <label>flow-rot</label>
+      <input type="range" id="s-flowrot" min="0" max="2" step="0.05" value="1.0">
+      <span class="val" id="v-flowrot">1.00</span>
+    </div>
+    <div class="slider-group" title="Per-colour intensity breathing — each colour waxes and wanes independently">
+      <label>col-breath</label>
+      <input type="range" id="s-colbreath" min="0" max="1" step="0.02" value="1.0">
+      <span class="val" id="v-colbreath">1.00</span>
+    </div>
+    <div class="sep-v"></div>
+    <label class="toggle" title="Use HDR (extended range) colours for the background">
+      <input type="checkbox" id="t-hdrbg">
+      <span>HDR bg</span>
+    </label>
+    <label class="toggle" title="Use HDR (display-p3) colours for the text">
+      <input type="checkbox" id="t-hdrtext" checked>
+      <span>HDR text</span>
+    </label>
+    <div class="sep-v"></div>
+    <button id="btn-reset" title="Reset to defaults">reset</button>
+  </div>
+
+  <div class="content w-full">
+
+    <!-- Page header -->
+    <header class="max-w-xl mx-auto px-6 pt-10 pb-6 text-center">
+      <h1 class="font-sans text-lg font-semibold text-stone-800 tracking-tight leading-none">
+        4 Jul <span class="text-stone-400 font-normal mx-1">·</span> Bangalore
+      </h1>
+    </header>
+
+    <!-- Event list -->
+    <div
+      x-data="eventsApp()"
+      x-init="load()"
+    >
+      <!-- Loading -->
+      <p x-show="state === 'loading'" x-cloak
+         class="text-sm text-stone-500 font-normal py-10 text-center">
+        Loading events…
+      </p>
+
+      <!-- Error -->
+      <p x-show="state === 'error'" x-cloak
+         class="text-sm text-stone-600 font-normal py-10 text-center">
+        <span x-text="error"></span>
+      </p>
+
+      <!-- Empty -->
+      <p x-show="state === 'ready' && events.length === 0" x-cloak
+         class="text-sm text-stone-500 font-normal py-10 text-center">
+        No events.
+      </p>
+
+      <!-- List -->
+      <template x-if="state === 'ready' && events.length > 0">
+        <div x-data="{ openIndex: null }">
+          <template x-for="(event, i) in events" :key="event.url || event.title || i">
+            <div class="event-row">
+              <div
+                class="fade-divider cursor-pointer group"
+                :class="{ 'is-open': openIndex === i }"
+                @click="openIndex = (openIndex === i ? null : i)"
+              >
+                <!-- Inner text column — reproduces the previous max-w-xl visual -->
+                <div class="row-inner max-w-xl mx-auto px-6 py-5">
+                  <!-- Title row -->
+                  <div class="flex items-start gap-3">
+                    <span x-show="event.emoji" class="text-base leading-snug mt-px" x-text="event.emoji"></span>
+                    <span
+                      class="font-sans text-[15px] font-medium text-stone-800 leading-snug tracking-tight flex-1"
+                      x-text="event.title || 'Untitled'"
+                    ></span>
+                  </div>
+
+                  <!-- Subtext -->
+                  <p
+                    x-show="event.time || event.location"
+                    :class="event.emoji ? 'ml-8' : ''"
+                    class="mt-2 text-[12px] text-stone-500 font-normal tracking-normal flex items-center flex-wrap gap-x-2.5 gap-y-1"
+                  >
+                    <span x-show="event.time" class="flex items-center gap-1">
+                      <span class="material-symbols-outlined text-stone-400">schedule</span>
+                      <span x-text="event.time"></span>
+                    </span>
+                    <span x-show="event.time && event.location" class="text-stone-400">·</span>
+                    <span x-show="event.location" class="flex items-center gap-1">
+                      <span class="material-symbols-outlined text-stone-400">location_on</span>
+                      <span x-text="event.location"></span>
+                    </span>
+                  </p>
+
+                  <!-- Expanded — grid-template-rows accordion for smooth height + fade -->
+                  <div
+                    class="accordion"
+                    :class="{ 'open': openIndex === i && (event.description || event.url) }"
+                    :style="event.emoji ? 'margin-left: 2rem' : ''"
+                  >
+                    <div class="accordion-inner">
+                      <p x-show="event.description" class="text-sm text-stone-600 font-normal leading-relaxed" x-text="event.description"></p>
+                      <a
+                        x-show="event.url"
+                        :href="event.url"
+                        target="_blank"
+                        rel="noopener"
+                        @click.stop
+                        class="inline-block mt-2 text-xs text-stone-600 hover:text-stone-900 underline underline-offset-4 decoration-stone-400 hover:decoration-stone-700 transition-colors duration-150"
+                      >More info →</a>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </template>
+        </div>
+      </template>
+    </div>
+
+  </div>
+
+  <script>
+    // Configurable data source — change this to point to any API returning a JSON array of events.
+    // Each event object may include: emoji, title, time, location, description, url.
+    // All fields are optional except title (or the row will render as "Untitled").
+    window.EVENTS_URL = 'events.json';
+
+    function eventsApp() {
+      return {
+        state: 'loading',   // 'loading' | 'ready' | 'error'
+        events: [],
+        error: '',
+        async load() {
+          try {
+            const res = await fetch(window.EVENTS_URL, { cache: 'no-store' });
+            if (!res.ok) throw new Error(`HTTP ${res.status}`);
+            const data = await res.json();
+            if (!Array.isArray(data)) throw new Error('Response is not an array');
+            this.events = data;
+            this.state  = 'ready';
+          } catch (e) {
+            this.error = `Couldn't load events: ${e.message}`;
+            this.state = 'error';
+            console.error(e);
+          }
+        },
+      };
+    }
+  </script>
+
+  <script type="module">
+    // Background rendering runs entirely off the main thread in a Web Worker
+    // that owns an OffscreenCanvas. This script only ships control messages
+    // (resize, slider values, tab visibility) to the worker — it never touches
+    // WebGL, three.js, or the render loop directly. Result: scrolling, input,
+    // and DOM interaction stay smooth regardless of shader load.
+
+    // Debug controls — only show the top panel when ?debug=true is set
+    const DEBUG = new URLSearchParams(location.search).get('debug') === 'true';
+    if (DEBUG) document.getElementById('mode-switch').classList.add('visible');
+
+    const canvas = document.getElementById('bg');
+
+    // Half-res render + CSS upscale — same as before, but sized on the main
+    // thread and communicated to the worker via 'resize' messages.
+    const RENDER_SCALE = 0.5;
+
+    function currentSize() {
+      return {
+        width:  Math.max(1, Math.floor(window.innerWidth  * RENDER_SCALE)),
+        height: Math.max(1, Math.floor(window.innerHeight * RENDER_SCALE)),
+      };
+    }
+
+    // Apply CSS size (upscaled to viewport) on the main thread.
+    function applyCssSize() {
+      canvas.style.width  = window.innerWidth  + 'px';
+      canvas.style.height = window.innerHeight + 'px';
+      canvas.style.imageRendering = 'auto';
+    }
+
+    // Spin up worker + transfer the OffscreenCanvas.
+    // The worker imports three.js as an ES module, so we use type: 'module'.
+    const worker = new Worker('bg-worker.js', { type: 'module' });
+    const offscreen = canvas.transferControlToOffscreen();
+    const initSize = currentSize();
+    applyCssSize();
+    worker.postMessage(
+      { type: 'init', canvas: offscreen, width: initSize.width, height: initSize.height },
+      [offscreen]  // transfer, not copy
+    );
+
+    // ── Resize (debounced to avoid message spam during drag) ─────────────
+    let resizeRaf = 0;
+    window.addEventListener('resize', () => {
+      if (resizeRaf) return;
+      resizeRaf = requestAnimationFrame(() => {
+        resizeRaf = 0;
+        applyCssSize();
+        const { width, height } = currentSize();
+        worker.postMessage({ type: 'resize', width, height });
+      });
+    });
+
+    // ── Visibility — pause worker render loop when tab hidden ────────────
+    document.addEventListener('visibilitychange', () => {
+      worker.postMessage({ type: 'visibility', visible: !document.hidden });
+    });
+
+    // ── Top control bar wiring ───────────────────────────────────────────
+    // Each slider sends a single postMessage to the worker on input.
+    const DEFAULTS = {
+      speed: 4.0, warp: 1.5, scale: 2.0, intensity: 0.50,
+      flowRot: 1.0, colBreath: 1.0,
+    };
+
+    function send(name, value) {
+      worker.postMessage({ type: 'uniform', name, value });
+    }
+
+    function bindSlider(sid, vid, decimals, uniformName) {
+      const s = document.getElementById(sid);
+      const v = document.getElementById(vid);
+      s.addEventListener('input', () => {
+        const val = parseFloat(s.value);
+        v.textContent = val.toFixed(decimals);
+        send(uniformName, val);
+      });
+    }
+    // Note: 'timeScale' is a special pseudo-uniform handled inside the worker.
+    bindSlider('s-speed',     'v-speed',     1, 'timeScale');
+    bindSlider('s-warp',      'v-warp',      1, 'uWarp');
+    bindSlider('s-scale',     'v-scale',     2, 'uBlob');
+    bindSlider('s-intensity', 'v-intensity', 2, 'uIntensity');
+    bindSlider('s-flowrot',   'v-flowrot',   2, 'uFlowRot');
+    bindSlider('s-colbreath', 'v-colbreath', 2, 'uColBreath');
+
+    document.getElementById('btn-reset').addEventListener('click', () => {
+      const set = (sid, vid, val, dec, uniformName) => {
+        const s = document.getElementById(sid), v = document.getElementById(vid);
+        s.value = val;
+        v.textContent = Number(val).toFixed(dec);
+        send(uniformName, val);
+      };
+      set('s-speed',     'v-speed',     DEFAULTS.speed,     1, 'timeScale');
+      set('s-warp',      'v-warp',      DEFAULTS.warp,      1, 'uWarp');
+      set('s-scale',     'v-scale',     DEFAULTS.scale,     2, 'uBlob');
+      set('s-intensity', 'v-intensity', DEFAULTS.intensity, 2, 'uIntensity');
+      set('s-flowrot',   'v-flowrot',   DEFAULTS.flowRot,   2, 'uFlowRot');
+      set('s-colbreath', 'v-colbreath', DEFAULTS.colBreath, 2, 'uColBreath');
+      // Reset toggles too (HDR text ON by default, HDR bg OFF)
+      document.getElementById('t-hdrbg').checked = false;
+      document.getElementById('t-hdrtext').checked = true;
+      document.body.classList.add('hdr-text');
+      send('uHDR', 0);
+    });
+
+    // HDR toggles
+    document.getElementById('t-hdrbg').addEventListener('change', (e) => {
+      send('uHDR', e.target.checked ? 1 : 0);
+    });
+    document.getElementById('t-hdrtext').addEventListener('change', (e) => {
+      document.body.classList.toggle('hdr-text', e.target.checked);
+    });
+
+    // Apply HDR text on load (checkbox is `checked` by default in HTML)
+    if (document.getElementById('t-hdrtext').checked) {
+      document.body.classList.add('hdr-text');
+    }
+  </script>
+
+</body>
+</html>
