@@ -108,8 +108,12 @@
       );
     }
     .event-row .fade-divider:hover::after,
+    .event-row .fade-divider:focus-visible::after,
     .event-row .fade-divider.is-open::after {
       background: rgba(255, 253, 248, 0.55);
+    }
+    .event-row .fade-divider:focus-visible {
+      outline: none;  /* the wash acts as the focus indicator */
     }
     /* On touch devices :hover sticks after tap; keep the wash off unless expanded */
     @media (hover: none), (pointer: coarse) {
@@ -323,6 +327,11 @@
                 class="fade-divider cursor-pointer group"
                 :class="{ 'is-open': openIndex === i }"
                 @click="openIndex = (openIndex === i ? null : i)"
+                @keydown.enter.prevent="openIndex = (openIndex === i ? null : i)"
+                @keydown.space.prevent="openIndex = (openIndex === i ? null : i)"
+                role="button"
+                tabindex="0"
+                :aria-expanded="openIndex === i ? 'true' : 'false'"
               >
                 <!-- Inner text column — reproduces the previous max-w-xl visual -->
                 <div class="row-inner max-w-xl mx-auto px-6 py-5">
