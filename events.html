@@ -235,32 +235,20 @@
     body.hdr-text .text-stone-500 { color: color(display-p3 0.44 0.40 0.36 / 1); } /* tertiary */
     body.hdr-text .text-stone-400 { color: color(display-p3 0.60 0.55 0.51 / 1); } /* muted */
 
-    /* Sticky header — subtle backdrop so text stays readable when the gradient
-       flows behind. Uses the same fade-mask so it dissolves into the page edges. */
+    /* Sticky header — frosted glass panel spanning viewport width.
+       Distinct from row highlights (no edge fade, stronger blur, more opaque)
+       so it reads as chrome, not as a row. */
     .sticky-header {
       position: sticky; top: 0; z-index: 10;
     }
     .sticky-header::before {
       content: '';
       position: absolute; inset: 0;
-      background: rgba(252, 249, 244, 0.55);
-      backdrop-filter: blur(10px);
-      -webkit-backdrop-filter: blur(10px);
+      background: rgba(252, 249, 244, 0.78);
+      backdrop-filter: blur(20px) saturate(1.4);
+      -webkit-backdrop-filter: blur(20px) saturate(1.4);
+      border-bottom: 1px solid rgba(160, 148, 132, 0.18);
       z-index: -1;
-      -webkit-mask-image: linear-gradient(
-        to right,
-        transparent 0,
-        black calc(50% - var(--col-width) / 2 - var(--fade-buffer)),
-        black calc(50% + var(--col-width) / 2 + var(--fade-buffer)),
-        transparent 100%
-      );
-      mask-image: linear-gradient(
-        to right,
-        transparent 0,
-        black calc(50% - var(--col-width) / 2 - var(--fade-buffer)),
-        black calc(50% + var(--col-width) / 2 + var(--fade-buffer)),
-        transparent 100%
-      );
     }
 
     /* Description preview (collapsed row): show first line only, with a
