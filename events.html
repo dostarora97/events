@@ -235,18 +235,18 @@
     body.hdr-text .text-stone-500 { color: color(display-p3 0.44 0.40 0.36 / 1); } /* tertiary */
     body.hdr-text .text-stone-400 { color: color(display-p3 0.60 0.55 0.51 / 1); } /* muted */
 
-    /* Sticky header — frosted glass panel spanning viewport width.
-       Distinct from row highlights (no edge fade, stronger blur, more opaque)
-       so it reads as chrome, not as a row. */
+    /* Sticky header — frosted-glass panel: translucent so scrolled content
+       is visible through it, but blurred so text stays readable. Distinct
+       from row highlights (no edge fade) so it reads as chrome. */
     .sticky-header {
       position: sticky; top: 0; z-index: 10;
     }
     .sticky-header::before {
       content: '';
       position: absolute; inset: 0;
-      background: rgba(252, 249, 244, 0.78);
-      backdrop-filter: blur(20px) saturate(1.4);
-      -webkit-backdrop-filter: blur(20px) saturate(1.4);
+      background: rgba(252, 249, 244, 0.38);
+      backdrop-filter: blur(24px) saturate(1.5);
+      -webkit-backdrop-filter: blur(24px) saturate(1.5);
       border-bottom: 1px solid rgba(160, 148, 132, 0.18);
       z-index: -1;
     }
