@@ -379,15 +379,15 @@
                   <!-- Subtext — same 6-unit left gutter as title, so time/location left-align with title text -->
                   <p
                     x-show="event.time || event.location"
-                    class="mt-2 pl-9 text-xs text-stone-500 font-normal tracking-normal flex items-center flex-wrap gap-x-2.5 gap-y-1"
+                    class="mt-2 pl-9 text-xs text-stone-600 font-normal tracking-normal flex items-center flex-wrap gap-x-2.5 gap-y-1"
                   >
                     <span x-show="event.time" class="flex items-center gap-1">
-                      <span class="material-symbols-outlined text-stone-400">schedule</span>
+                      <span class="material-symbols-outlined text-stone-500">schedule</span>
                       <span x-text="event.time"></span>
                     </span>
                     <span x-show="event.time && event.location" class="text-stone-400">·</span>
                     <span x-show="event.location" class="flex items-center gap-1">
-                      <span class="material-symbols-outlined text-stone-400">location_on</span>
+                      <span class="material-symbols-outlined text-stone-500">location_on</span>
                       <span x-text="event.location"></span>
                     </span>
                   </p>
