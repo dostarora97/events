@@ -244,15 +244,14 @@
       transform: rotate(45deg);
     }
 
-    /* HDR text (opt-in via body class) */
-    body.hdr-text .text-stone-800 { color: color(display-p3 0 0 0 / 1); }
-    body.hdr-text .text-stone-700 { color: color(display-p3 0.05 0.04 0.03 / 1); }
-    body.hdr-text .text-stone-600 { color: color(display-p3 0.15 0.13 0.11 / 1); }
-    body.hdr-text .text-stone-500 { color: color(display-p3 0.32 0.29 0.26 / 1); }
-    body.hdr-text .text-stone-400 { color: color(display-p3 0.55 0.51 0.47 / 1); }
+    /* HDR text (opt-in via body class) — mirrors the sRGB stone tiers in P3 space */
+    body.hdr-text .text-stone-800 { color: color(display-p3 0.16 0.14 0.13 / 1); } /* primary heading/title */
+    body.hdr-text .text-stone-600 { color: color(display-p3 0.30 0.27 0.25 / 1); } /* body / description */
+    body.hdr-text .text-stone-500 { color: color(display-p3 0.44 0.40 0.36 / 1); } /* meta */
+    body.hdr-text .text-stone-400 { color: color(display-p3 0.60 0.55 0.51 / 1); } /* icons, quiet accents */
   </style>
 </head>
-<body class="min-h-screen font-sans text-stone-700">
+<body class="min-h-screen font-sans text-stone-600">
 
   <canvas id="bg"></canvas>
 
@@ -383,7 +382,7 @@
                         target="_blank"
                         rel="noopener"
                         @click.stop
-                        class="inline-block mt-2 text-xs text-stone-600 hover:text-stone-900 underline underline-offset-4 decoration-stone-400 hover:decoration-stone-700 transition-colors duration-150"
+                        class="inline-block mt-2 text-xs text-stone-800 hover:text-stone-800 underline underline-offset-4 decoration-stone-400 hover:decoration-stone-600 transition-colors duration-150"
                       >More info →</a>
                     </div>
                   </div>
