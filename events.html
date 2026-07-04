@@ -262,6 +262,19 @@
         transparent 100%
       );
     }
+
+    /* Description preview (collapsed row): show first line only, with a
+       soft right-edge fade so the ellipsis feels intentional and invites
+       tapping — the content itself signals "there's more". */
+    .desc-preview {
+      display: -webkit-box;
+      -webkit-box-orient: vertical;
+      -webkit-line-clamp: 1;
+      line-clamp: 1;
+      overflow: hidden;
+      -webkit-mask-image: linear-gradient(to right, black 70%, transparent 100%);
+              mask-image: linear-gradient(to right, black 70%, transparent 100%);
+    }
   </style>
   </style>
 </head>
@@ -391,6 +404,14 @@
                       <span x-text="event.location"></span>
                     </span>
                   </p>
+
+                  <!-- Description preview (collapsed only) — the fading ellipsis
+                       is the affordance signalling "there's more if you tap". -->
+                  <p
+                    x-show="event.description && openIndex !== i"
+                    class="desc-preview mt-2 pl-9 text-sm text-stone-600 font-normal leading-snug"
+                    x-text="event.description"
+                  ></p>
 
                   <!-- Expanded — grid-template-rows accordion for smooth height + fade -->
                   <div
