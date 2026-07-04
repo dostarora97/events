@@ -345,20 +345,19 @@
               >
                 <!-- Inner text column — reproduces the previous max-w-xl visual -->
                 <div class="row-inner max-w-xl mx-auto px-6 py-5">
-                  <!-- Title row -->
-                  <div class="flex items-start gap-3">
-                    <span x-show="event.emoji" class="text-base leading-snug mt-px" x-text="event.emoji"></span>
+                  <!-- Title row: fixed emoji gutter so titles left-align regardless of emoji presence -->
+                  <div class="flex items-baseline gap-3">
+                    <span class="flex-shrink-0 w-6 text-base text-center" x-text="event.emoji || ''"></span>
                     <span
                       class="font-sans text-[15px] font-medium text-stone-800 leading-snug tracking-tight flex-1"
                       x-text="event.title || 'Untitled'"
                     ></span>
                   </div>
 
-                  <!-- Subtext -->
+                  <!-- Subtext — same 6-unit left gutter as title, so time/location left-align with title text -->
                   <p
                     x-show="event.time || event.location"
-                    :class="event.emoji ? 'ml-8' : ''"
-                    class="mt-2 text-[12px] text-stone-500 font-normal tracking-normal flex items-center flex-wrap gap-x-2.5 gap-y-1"
+                    class="mt-2 pl-9 text-[12px] text-stone-500 font-normal tracking-normal flex items-center flex-wrap gap-x-2.5 gap-y-1"
                   >
                     <span x-show="event.time" class="flex items-center gap-1">
                       <span class="material-symbols-outlined text-stone-400">schedule</span>
@@ -373,9 +372,8 @@
 
                   <!-- Expanded — grid-template-rows accordion for smooth height + fade -->
                   <div
-                    class="accordion"
+                    class="accordion pl-9"
                     :class="{ 'open': openIndex === i && (event.description || event.url) }"
-                    :style="event.emoji ? 'margin-left: 2rem' : ''"
                   >
                     <div class="accordion-inner">
                       <p x-show="event.description" class="text-sm text-stone-600 font-normal leading-relaxed" x-text="event.description"></p>
