@@ -237,18 +237,29 @@
 
     /* Sticky header — frosted-glass panel: translucent so scrolled content
        is visible through it, but blurred so text stays readable. Distinct
-       from row highlights (no edge fade) so it reads as chrome. */
+       from row highlights (no edge fade) so it reads as chrome.
+       The backdrop only activates when the header becomes 'stuck' (see JS). */
     .sticky-header {
       position: sticky; top: 0; z-index: 10;
     }
     .sticky-header::before {
       content: '';
       position: absolute; inset: 0;
+      background: rgba(252, 249, 244, 0);
+      backdrop-filter: blur(0px);
+      -webkit-backdrop-filter: blur(0px);
+      border-bottom: 1px solid transparent;
+      z-index: -1;
+      transition: background 200ms ease,
+                  backdrop-filter 200ms ease,
+                  -webkit-backdrop-filter 200ms ease,
+                  border-color 200ms ease;
+    }
+    .sticky-header.is-stuck::before {
       background: rgba(252, 249, 244, 0.38);
       backdrop-filter: blur(24px) saturate(1.5);
       -webkit-backdrop-filter: blur(24px) saturate(1.5);
-      border-bottom: 1px solid rgba(160, 148, 132, 0.18);
-      z-index: -1;
+      border-bottom-color: rgba(160, 148, 132, 0.18);
     }
 
     /* Description preview (collapsed row): show first line only, with a
@@ -316,6 +327,11 @@
   </div>
 
   <main>
+
+    <!-- Sentinel: 1px element just above the sticky header.
+         When it scrolls out of view, the header is 'stuck' and gets the
+         backdrop treatment via .is-stuck class (see IntersectionObserver below). -->
+    <div id="header-sentinel" aria-hidden="true" style="height: 1px;"></div>
 
     <!-- Page header (sticky) -->
     <header class="sticky-header">
@@ -455,6 +471,21 @@
         },
       };
     }
+
+    // Sticky-header 'stuck' detection via a sentinel above the header.
+    // When the sentinel scrolls out of view, the header is docked to top:0 and
+    // we apply .is-stuck to activate the frosted-glass backdrop.
+    // Uses IntersectionObserver (single event per crossing, no scroll listener).
+    (function stickyHeaderObserver() {
+      const sentinel = document.getElementById('header-sentinel');
+      const header   = document.querySelector('.sticky-header');
+      if (!sentinel || !header || !('IntersectionObserver' in window)) return;
+      const io = new IntersectionObserver(
+        ([entry]) => header.classList.toggle('is-stuck', !entry.isIntersecting),
+        { threshold: 0 }
+      );
+      io.observe(sentinel);
+    })();
   </script>
 
   <script type="module">
