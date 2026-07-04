@@ -24,24 +24,23 @@
   <style>
     [x-cloak] { display: none !important; }
     body { background: #f0e8dc; }
-    #bg { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; z-index: 0; pointer-events: none; }
-    .content { position: relative; z-index: 1; }
-    .divider { border-color: rgba(160,148,132,0.35); }
+    #bg { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; z-index: -1; pointer-events: none; }
+
     /* Layout tokens — text column is roughly max-w-xl (576px = 36rem) */
     :root {
       --col-width: 36rem;         /* text column max-width */
       --fade-buffer: 5rem;        /* buffer inside the column edge before fade begins */
     }
-
-    /* Edge-fading horizontal divider — spans full viewport, fades ONLY beyond the text column edges */
-    .fade-divider {
-      position: relative;
+    @media (max-width: 640px) {
+      :root {
+        --col-width: 65vw;
+        --fade-buffer: 4vw;
+      }
     }
-    .event-row + .event-row .fade-divider::before {
-      content: '';
-      position: absolute; top: 0; left: 0; right: 0; height: 1px;
-      background: rgba(160,148,132,0.55);
-      /* Solid from ~text column left edge to ~text column right edge; fade outward */
+
+    /* Fade mask (horizontal) — reused by divider line and hover wash.
+       Solid across the text column plus buffer; fades outward to viewport edges. */
+    .fade-mask {
       -webkit-mask-image: linear-gradient(
         to right,
         transparent 0,
@@ -56,12 +55,97 @@
         black calc(50% + var(--col-width) / 2 + var(--fade-buffer)),
         transparent 100%
       );
+    }
+
+    /* Edge-fading horizontal divider — only between adjacent rows */
+    .fade-divider { position: relative; }
+    .event-row + .event-row .fade-divider::before {
+      content: '';
+      position: absolute; top: 0; left: 0; right: 0; height: 1px;
+      background: rgba(160,148,132,0.55);
       pointer-events: none;
       z-index: 2;
+      /* Fade mask (see .fade-mask above) — repeated because pseudo-elements can't inherit classes */
+      -webkit-mask-image: linear-gradient(
+        to right,
+        transparent 0,
+        black calc(50% - var(--col-width) / 2 - var(--fade-buffer)),
+        black calc(50% + var(--col-width) / 2 + var(--fade-buffer)),
+        transparent 100%
+      );
+      mask-image: linear-gradient(
+        to right,
+        transparent 0,
+        black calc(50% - var(--col-width) / 2 - var(--fade-buffer)),
+        black calc(50% + var(--col-width) / 2 + var(--fade-buffer)),
+        transparent 100%
+      );
     }
-    .material-symbols-outlined { font-variation-settings: 'opsz' 20, 'wght' 300, 'FILL' 0, 'GRAD' 0; vertical-align: -3px; font-size: 13px; }
 
-    /* Top control bar — hidden unless ?debug=true (JS toggles .visible) */
+    /* Row hover / expanded — same fade mask, solid across text column,
+       fades outward to viewport edges. */
+    .event-row .fade-divider::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: rgba(255, 253, 248, 0);
+      pointer-events: none;
+      transition: background 300ms ease;
+      z-index: 0;
+      -webkit-mask-image: linear-gradient(
+        to right,
+        transparent 0,
+        black calc(50% - var(--col-width) / 2 - var(--fade-buffer)),
+        black calc(50% + var(--col-width) / 2 + var(--fade-buffer)),
+        transparent 100%
+      );
+      mask-image: linear-gradient(
+        to right,
+        transparent 0,
+        black calc(50% - var(--col-width) / 2 - var(--fade-buffer)),
+        black calc(50% + var(--col-width) / 2 + var(--fade-buffer)),
+        transparent 100%
+      );
+    }
+    .event-row .fade-divider:hover::after,
+    .event-row .fade-divider.is-open::after {
+      background: rgba(255, 253, 248, 0.55);
+    }
+    /* On touch devices :hover sticks after tap; keep the wash off unless expanded */
+    @media (hover: none), (pointer: coarse) {
+      .event-row .fade-divider:hover:not(.is-open)::after {
+        background: rgba(255, 253, 248, 0);
+      }
+    }
+    /* Row content sits above the wash */
+    .event-row .fade-divider > * { position: relative; z-index: 1; }
+
+    /* Accordion: smooth height + fade via grid-template-rows */
+    .accordion {
+      display: grid;
+      grid-template-rows: 0fr;
+      opacity: 0;
+      margin-top: 0;
+      transition: grid-template-rows 400ms cubic-bezier(0.22, 1, 0.36, 1),
+                  opacity          280ms ease,
+                  margin-top       400ms cubic-bezier(0.22, 1, 0.36, 1);
+    }
+    .accordion.open {
+      grid-template-rows: 1fr;
+      opacity: 1;
+      margin-top: 0.75rem;
+    }
+    .accordion > .accordion-inner {
+      overflow: hidden;
+      min-height: 0;
+    }
+
+    .material-symbols-outlined {
+      font-variation-settings: 'opsz' 20, 'wght' 300, 'FILL' 0, 'GRAD' 0;
+      vertical-align: -3px; font-size: 13px;
+    }
+
+    /* ── Debug control bar (hidden unless ?debug=true) ────────────────── */
     #mode-switch {
       display: none;
       position: fixed; top: 12px; left: 12px; right: 12px; z-index: 100;
@@ -79,7 +163,6 @@
       row-gap: 4px;
     }
     #mode-switch.visible { display: flex; }
-    #mode-switch .group { display: flex; gap: 4px; align-items: center; }
     #mode-switch .sep-v { width: 1px; height: 18px; background: rgba(180,165,148,0.35); }
     #mode-switch button {
       padding: 5px 12px; border-radius: 999px; border: none;
@@ -92,47 +175,13 @@
       display: flex; align-items: center; gap: 6px;
       padding: 0 4px;
     }
-    #mode-switch .slider-group label {
-      color: #7a6e63; font-size: 10.5px;
-      user-select: none;
-    }
+    #mode-switch .slider-group label { color: #7a6e63; font-size: 10.5px; user-select: none; }
     #mode-switch input[type=range] {
       -webkit-appearance: none; appearance: none;
       width: 70px; height: 3px; border-radius: 2px;
       background: rgba(180,165,148,0.30);
       accent-color: #b8a898;
       cursor: pointer;
-    }
-    /* Narrower sliders on small screens */
-    @media (max-width: 640px) {
-      #mode-switch {
-        gap: 4px 8px;
-        padding: 8px 14px;
-        font-size: 11px;
-      }
-      #mode-switch .slider-group {
-        padding: 0;
-        gap: 10px;
-        flex: 0 0 100%;
-        display: flex;
-      }
-      #mode-switch .slider-group label {
-        flex: 0 0 60px;
-      }
-      #mode-switch input[type=range] {
-        flex: 1;
-        width: auto;
-        min-width: 0;
-      }
-      #mode-switch .val {
-        flex: 0 0 34px;
-      }
-      #mode-switch .sep-v { display: none; }
-      #mode-switch button { padding: 5px 12px; }
-      #mode-switch .toggle {
-        padding: 0; gap: 5px;
-        flex: 0 0 auto;
-      }
     }
     #mode-switch input[type=range]::-webkit-slider-thumb {
       -webkit-appearance: none;
@@ -143,82 +192,6 @@
     #mode-switch .val {
       color: #a89880; font-size: 10px; min-width: 26px;
       font-variant-numeric: tabular-nums; text-align: right;
-    }
-
-    /* ── Accordion: smooth height + fade using grid-template-rows ── */
-    .accordion {
-      display: grid;
-      grid-template-rows: 0fr;
-      opacity: 0;
-      transition: grid-template-rows 400ms cubic-bezier(0.22, 1, 0.36, 1),
-                  opacity          280ms ease,
-                  margin-top       400ms cubic-bezier(0.22, 1, 0.36, 1);
-      margin-top: 0;
-    }
-    .accordion.open {
-      grid-template-rows: 1fr;
-      opacity: 1;
-      margin-top: 0.75rem;
-    }
-    .accordion > .accordion-inner {
-      overflow: hidden;
-      min-height: 0;
-    }
-
-    /* Row hover / expanded — full-width wash, solid across the text column,
-       fades outward into the outer margins where no text lives. */
-    .event-row .fade-divider {
-      position: relative;
-    }
-    .event-row .fade-divider::after {
-      content: '';
-      position: absolute;
-      inset: 0;
-      background: rgba(255, 253, 248, 0);
-      pointer-events: none;
-      transition: background 300ms ease;
-      -webkit-mask-image: linear-gradient(
-        to right,
-        transparent 0,
-        black calc(50% - var(--col-width) / 2 - var(--fade-buffer)),
-        black calc(50% + var(--col-width) / 2 + var(--fade-buffer)),
-        transparent 100%
-      );
-      mask-image: linear-gradient(
-        to right,
-        transparent 0,
-        black calc(50% - var(--col-width) / 2 - var(--fade-buffer)),
-        black calc(50% + var(--col-width) / 2 + var(--fade-buffer)),
-        transparent 100%
-      );
-      z-index: 0;
-    }
-    .event-row .fade-divider:hover::after,
-    .event-row .fade-divider.is-open::after {
-      background: rgba(255, 253, 248, 0.55);
-    }
-    /* On touch-primary devices (mobile / tablet), the :hover state persists
-       after tap and won't clear until user taps elsewhere — this leaves the
-       wash lingering after the row is collapsed. Disable hover styling there
-       and rely solely on the .is-open class for expanded-state highlighting.
-       Note: :not(.is-open) prevents this rule from suppressing the highlight
-       on the currently-expanded row, which also matches :hover. */
-    @media (hover: none), (pointer: coarse) {
-      .event-row .fade-divider:hover:not(.is-open)::after {
-        background: rgba(255, 253, 248, 0);
-      }
-    }
-    /* Row content sits above the wash */
-    .event-row .fade-divider > * { position: relative; z-index: 1; }
-
-    /* On narrow viewports (mobile), the text column fills the viewport,
-       so scale down the col-width and buffer proportionally so the fade
-       zone still visibly dissolves at both edges. */
-    @media (max-width: 640px) {
-      :root {
-        --col-width: 65vw;
-        --fade-buffer: 4vw;
-      }
     }
     #mode-switch .toggle {
       display: flex; align-items: center; gap: 4px; cursor: pointer;
@@ -232,9 +205,7 @@
       cursor: pointer; position: relative;
       margin: 0;
     }
-    #mode-switch .toggle input:checked {
-      background: #7a6e63; border-color: #7a6e63;
-    }
+    #mode-switch .toggle input:checked { background: #7a6e63; border-color: #7a6e63; }
     #mode-switch .toggle input:checked::after {
       content: ''; position: absolute;
       left: 3px; top: 0.5px;
@@ -243,12 +214,23 @@
       border-width: 0 1.5px 1.5px 0;
       transform: rotate(45deg);
     }
+    /* Debug bar: mobile — one slider per row, controls wrap freely */
+    @media (max-width: 640px) {
+      #mode-switch { gap: 4px 8px; }
+      #mode-switch .slider-group { padding: 0; gap: 10px; flex: 0 0 100%; }
+      #mode-switch .slider-group label { flex: 0 0 60px; }
+      #mode-switch input[type=range] { flex: 1; width: auto; min-width: 0; }
+      #mode-switch .val { flex: 0 0 34px; }
+      #mode-switch .sep-v { display: none; }
+      #mode-switch .toggle { padding: 0; gap: 5px; flex: 0 0 auto; }
+    }
 
     /* HDR text (opt-in via body class) — mirrors the sRGB stone tiers in P3 space */
-    body.hdr-text .text-stone-800 { color: color(display-p3 0.16 0.14 0.13 / 1); } /* primary heading/title */
-    body.hdr-text .text-stone-600 { color: color(display-p3 0.30 0.27 0.25 / 1); } /* body / description */
-    body.hdr-text .text-stone-500 { color: color(display-p3 0.44 0.40 0.36 / 1); } /* meta */
-    body.hdr-text .text-stone-400 { color: color(display-p3 0.60 0.55 0.51 / 1); } /* icons, quiet accents */
+    body.hdr-text .text-stone-800 { color: color(display-p3 0.16 0.14 0.13 / 1); } /* primary */
+    body.hdr-text .text-stone-600 { color: color(display-p3 0.30 0.27 0.25 / 1); } /* secondary */
+    body.hdr-text .text-stone-500 { color: color(display-p3 0.44 0.40 0.36 / 1); } /* tertiary */
+    body.hdr-text .text-stone-400 { color: color(display-p3 0.60 0.55 0.51 / 1); } /* muted */
+  </style>
   </style>
 </head>
 <body class="min-h-screen font-sans text-stone-600">
@@ -300,7 +282,7 @@
     <button id="btn-reset" title="Reset to defaults">reset</button>
   </div>
 
-  <div class="content w-full">
+  <main>
 
     <!-- Page header -->
     <header class="max-w-xl mx-auto px-6 pt-10 pb-6">
@@ -394,7 +376,7 @@
       </template>
     </div>
 
-  </div>
+  </main>
 
   <script>
     // Configurable data source — change this to point to any API returning a JSON array of events.
