@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>4 Jul · Bangalore</title>
+  <title>Bengaluru events</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -333,22 +333,22 @@
          backdrop treatment via .is-stuck class (see IntersectionObserver below). -->
     <div id="header-sentinel" aria-hidden="true" style="height: 1px;"></div>
 
-    <!-- Page header (sticky) -->
-    <header class="sticky-header">
-      <div class="max-w-xl mx-auto px-6 py-3 flex items-center justify-end">
-        <h1 class="font-sans text-lg font-semibold text-stone-800 tracking-tight leading-none">
-          <span>4 Jul</span>
-          <span class="text-stone-400 font-normal mx-1">·</span>
-          <span>Bangalore</span>
-        </h1>
-      </div>
-    </header>
-
-    <!-- Event list -->
+    <!-- Event list + header share one Alpine scope so the header date derives from the data -->
     <div
       x-data="eventsApp()"
       x-init="load()"
     >
+      <!-- Page header (sticky) — date range computed from the loaded events -->
+      <header class="sticky-header">
+        <div class="max-w-xl mx-auto px-6 py-3 flex items-center justify-end">
+          <h1 class="font-sans text-lg font-semibold text-stone-800 tracking-tight leading-none">
+            <span x-text="dateLabel"></span>
+            <span class="text-stone-400 font-normal mx-1">·</span>
+            <span>Bangalore</span>
+          </h1>
+        </div>
+      </header>
+
       <!-- Loading -->
       <p x-show="state === 'loading'" x-cloak
          class="text-sm text-stone-500 font-normal py-10 text-center">
@@ -463,11 +463,50 @@
             if (!Array.isArray(data)) throw new Error('Response is not an array');
             this.events = data;
             this.state  = 'ready';
+            // Keep the browser tab title in sync with the derived date range
+            document.title = `${this.dateLabel} · Bangalore`;
           } catch (e) {
             this.error = `Couldn't load events: ${e.message}`;
             this.state = 'error';
             console.error(e);
           }
+        },
+
+        // Header date label, derived from the events themselves so it can never
+        // drift from the data. Parses each event's `datetime` (e.g.
+        // "10th July, Friday, 11:00 AM"), then formats a range:
+        //   single day  -> "10 Jul"
+        //   same month   -> "10–12 Jul"
+        //   diff months  -> "30 Jul – 2 Aug"
+        get dateLabel() {
+          const MONTHS = ['January','February','March','April','May','June','July',
+                          'August','September','October','November','December'];
+          const SHORT  = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+
+          const parsed = this.events
+            .map(e => {
+              const m = (e.datetime || '').match(/(\d{1,2})(?:st|nd|rd|th)?\s+([A-Za-z]+)/);
+              if (!m) return null;
+              const day = parseInt(m[1], 10);
+              const monthIdx = MONTHS.findIndex(mm => mm.toLowerCase() === m[2].toLowerCase());
+              if (monthIdx === -1) return null;
+              return { day, monthIdx };
+            })
+            .filter(Boolean)
+            .sort((a, b) => a.monthIdx - b.monthIdx || a.day - b.day);
+
+          if (parsed.length === 0) return 'Bengaluru events';  // graceful fallback
+
+          const first = parsed[0];
+          const last  = parsed[parsed.length - 1];
+
+          if (first.day === last.day && first.monthIdx === last.monthIdx) {
+            return `${first.day} ${SHORT[first.monthIdx]}`;
+          }
+          if (first.monthIdx === last.monthIdx) {
+            return `${first.day}–${last.day} ${SHORT[first.monthIdx]}`;
+          }
+          return `${first.day} ${SHORT[first.monthIdx]} – ${last.day} ${SHORT[last.monthIdx]}`;
         },
       };
     }
