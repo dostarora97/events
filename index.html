@@ -317,10 +317,11 @@
       <span>HDR text</span>
     </label>
     <div class="sep-v"></div>
-    <div class="slider-group" title="Header field order preset — D:T shows day·time, T:D shows time·day">
+    <div class="slider-group" title="Header preset — display slots (left·mid·right)">
       <label>preset</label>
-      <button type="button" id="preset-dt" aria-pressed="true">D:T</button>
-      <button type="button" id="preset-td" aria-pressed="false">T:D</button>
+      <button type="button" class="preset-btn" data-preset="T_D">T·D</button>
+      <button type="button" class="preset-btn" data-preset="D_T" aria-pressed="true">D·T</button>
+      <button type="button" class="preset-btn" data-preset="CDT">C·D·T</button>
     </div>
     <div class="sep-v"></div>
     <button id="btn-reset" title="Reset to defaults">reset</button>
@@ -357,14 +358,16 @@
         <div x-data="{ openKey: null }">
           <template x-for="group in groups" :key="group.key">
             <section>
-              <!-- Sticky header — secondary label (left) · day (right).
-                   Left is city or time depending on the groupBy toggle. -->
+              <!-- Sticky header — three slots (left · mid · right) driven by the
+                   active preset. Null slots render empty but keep their column. -->
               <header class="sticky-header">
-                <div class="max-w-xl mx-auto px-6 py-3 flex items-center justify-between gap-4">
-                  <span class="font-sans text-lg font-semibold text-stone-800 tracking-tight leading-none"
-                        x-text="group.leftLabel"></span>
-                  <span class="font-sans text-lg font-semibold text-stone-800 tracking-tight leading-none whitespace-nowrap"
-                        x-text="group.rightLabel"></span>
+                <div class="max-w-xl mx-auto px-6 py-3 grid grid-cols-3 items-center gap-3">
+                  <span class="font-sans text-lg font-semibold text-stone-800 tracking-tight leading-none text-left"
+                        x-text="group.slotLabels[0]"></span>
+                  <span class="font-sans text-lg font-semibold text-stone-800 tracking-tight leading-none text-center whitespace-nowrap"
+                        x-text="group.slotLabels[1]"></span>
+                  <span class="font-sans text-lg font-semibold text-stone-800 tracking-tight leading-none text-right whitespace-nowrap"
+                        x-text="group.slotLabels[2]"></span>
                 </div>
               </header>
 
@@ -456,7 +459,6 @@
         state: 'loading',   // 'loading' | 'ready' | 'error'
         events: [],
         error: '',
-        preset: 'D:T',      // active header/sort preset: 'D:T' (day·time) | 'T:D' (time·day)
         async load() {
           try {
             const res = await fetch(window.EVENTS_URL, { cache: 'no-store' });
@@ -532,7 +534,16 @@
             cmp:     function (a, b) { return ((a.city || '').trim()).localeCompare((b.city || '').trim()); },
           },
         },
-        _PRESETS: { 'D:T': ['day', 'time'], 'T:D': ['time', 'day'] },
+        // Presets: each has display `slots` [left, mid, right] (field name or null)
+        // and its own `sort` field list (independent of display). Reuses _FIELDS
+        // + the generic _comparator. Array (ordered) so the debug panel can iterate.
+        _PRESETS: [
+          { id: 'T_D', label: 'T·D',   slots: ['time', null,  'day'],  sort: ['day', 'time'] },
+          { id: 'D_T', label: 'D·T',   slots: ['day',  null,  'time'], sort: ['day', 'time'] },
+          { id: 'CDT', label: 'C·D·T', slots: ['city', 'day', 'time'], sort: ['city', 'day', 'time'] },
+        ],
+        preset: 'D_T',   // active preset id; default D·T (day left, time right, mid empty)
+        _activePreset() { return this._PRESETS.find(p => p.id === this.preset) || this._PRESETS[0]; },
 
         // Generic comparator built on the fly from an ordered list of field names.
         _comparator(fieldNames) {
@@ -545,35 +556,29 @@
           };
         },
 
-        // Events grouped into sections, one section per distinct (day + time)
-        // combination so both header slots always carry a real value.
-        //
-        // Sorting is ALWAYS canonical (day, then time = absolute-time ascending),
-        // independent of the active preset. The `preset` only decides which
-        // field's label shows on the LEFT vs RIGHT of each header — so switching
-        // D:T ⇄ T:D swaps the header sides but never reorders events.
-        // Each group: { key, leftLabel, rightLabel, events }. Computed on the fly.
-        _CANONICAL_SORT: ['day', 'time'],
+        // Events grouped into sections. A section = one distinct combination of
+        // the active preset's NON-NULL display fields, so every shown slot always
+        // carries a real value. Sort uses the preset's own `sort` list (independent
+        // of the display slot order). Each group: { key, slotLabels:[l,m,r], events }.
         get groups() {
-          const sideFields = this._PRESETS[this.preset] || this._PRESETS['D:T'];  // header sides only
-          const sorted = [...this.events].sort(this._comparator(this._CANONICAL_SORT));
+          const preset = this._activePreset();
+          const shown  = preset.slots.filter(Boolean);   // non-null display fields
+          const sorted = [...this.events].sort(this._comparator(preset.sort));
 
-          const sectionsByKey = new Map();   // "dayKey|timeKey" -> group (insertion order preserved)
+          const sections = new Map();   // composite key of shown-field keys -> group
           for (const ev of sorted) {
-            const dayKey  = this._FIELDS.day.keyOf(ev, this);
-            const timeKey = this._FIELDS.time.keyOf(ev, this);
-            const sectionKey = `${dayKey}|${timeKey}`;
-            if (!sectionsByKey.has(sectionKey)) {
-              sectionsByKey.set(sectionKey, {
-                key: `${this.preset}:${sectionKey}`,
-                leftLabel:  this._FIELDS[sideFields[0]].labelOf(ev, this),
-                rightLabel: this._FIELDS[sideFields[1]].labelOf(ev, this),
+            const sectionKey = shown.map(f => this._FIELDS[f].keyOf(ev, this)).join('|');
+            if (!sections.has(sectionKey)) {
+              sections.set(sectionKey, {
+                key: `${preset.id}:${sectionKey}`,
+                // one label per slot position; null slot -> '' (renders empty)
+                slotLabels: preset.slots.map(f => f ? this._FIELDS[f].labelOf(ev, this) : ''),
                 events: [],
               });
             }
-            sectionsByKey.get(sectionKey).events.push(ev);
+            sections.get(sectionKey).events.push(ev);
           }
-          return [...sectionsByKey.values()];
+          return [...sections.values()];
         },
 
         // Overall date range — used only for the browser tab <title>.
@@ -718,21 +723,18 @@
       document.body.classList.add('hdr-text');
     }
 
-    // Preset selector (debug panel) — sets the Alpine `preset` on the eventsApp
-    // component. Reaches into Alpine via Alpine.$data on the component root.
+    // Preset selector (debug panel) — sets the Alpine `preset` id on the eventsApp
+    // component. Generalised to N buttons via each button's data-preset.
     (function wirePreset() {
       const appEl = document.querySelector('[x-data="eventsApp()"]');
-      const btnDT = document.getElementById('preset-dt');
-      const btnTD = document.getElementById('preset-td');
-      if (!appEl || !btnDT || !btnTD) return;
-      const setPreset = (p) => {
+      const btns = [...document.querySelectorAll('.preset-btn')];
+      if (!appEl || !btns.length) return;
+      const setPreset = (id) => {
         const data = window.Alpine && Alpine.$data(appEl);
-        if (data) data.preset = p;
-        btnDT.setAttribute('aria-pressed', String(p === 'D:T'));
-        btnTD.setAttribute('aria-pressed', String(p === 'T:D'));
+        if (data) data.preset = id;
+        btns.forEach(b => b.setAttribute('aria-pressed', String(b.dataset.preset === id)));
       };
-      btnDT.addEventListener('click', () => setPreset('D:T'));
-      btnTD.addEventListener('click', () => setPreset('T:D'));
+      btns.forEach(b => b.addEventListener('click', () => setPreset(b.dataset.preset)));
     })();
   </script>
 
