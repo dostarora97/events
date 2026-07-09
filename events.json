@@ -232,5 +232,50 @@
     "location": "ZLB23, Kodihalli",
     "url": "https://puttingscene.com/events/5013?external=true",
     "time": "9:00 PM"
+  },
+  {
+    "emoji": "🎬",
+    "title": "TPCC x Blr Design Center: The Community Festival",
+    "datetime": "10th July, Friday, 7:00 PM",
+    "description": "A three-day art-house festival where club members screen the films they love most, from Buñuel and Ray to Dreyer and Naruse",
+    "location": "BlrDesignCenter, Ashok Nagar",
+    "url": "https://puttingscene.com/events/5090?external=true",
+    "time": "7:00 PM"
+  },
+  {
+    "emoji": "🪵",
+    "title": "Art Exhibition: Silent Impressions",
+    "datetime": "10th July, Friday, 11:00 AM",
+    "description": "Simran Nigam trades brush for chisel in a solo show of hand-engraved wood, carving fantastical flora and fauna at Sublime Galleria",
+    "location": "Sublime Galleria, UB City, Ashok Nagar",
+    "url": "https://puttingscene.com/events/5086?external=true",
+    "time": "11:00 AM"
+  },
+  {
+    "emoji": "🌿",
+    "title": "Nature Immersive Experience at NGMA Bengaluru",
+    "datetime": "11th July, Saturday, 11:00 AM",
+    "description": "A guided morning of nature immersion at NGMA Bengaluru, tuning into the greenery and stories of the landscape around you",
+    "location": "National Gallery of Modern Art, Bengaluru",
+    "url": "https://puttingscene.com/events/5079?external=true",
+    "time": "11:00 AM"
+  },
+  {
+    "emoji": "🐕",
+    "title": "Oslo: A Tail of Promise Film Screening and Chat with the Filmmakers",
+    "datetime": "12th July, Sunday, 11:00 AM",
+    "description": "Screening of Oslo: A Tail of Promise, the true story of a Siberian husky and a woman's journey of belonging, with a filmmakers' chat to follow",
+    "location": "Bangalore International Centre, Domlur",
+    "url": "https://puttingscene.com/events/5036?external=true",
+    "time": "11:00 AM"
+  },
+  {
+    "emoji": "🧀",
+    "title": "Melchior Cheese Canvas Painting",
+    "datetime": "12th July, Sunday, 4:00 PM",
+    "description": "A cheese canvas painting workshop where your palette is fine cheese from Melchior and your finished artwork is entirely edible, paired with Grover Zampa wine",
+    "location": "The Humming Tree, Indiranagar",
+    "url": "https://puttingscene.com/events/5098?external=true",
+    "time": "4:00 PM"
   }
 ]
