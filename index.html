@@ -30,6 +30,18 @@
     :root {
       --col-width: 36rem;         /* text column max-width */
       --fade-buffer: 5rem;        /* buffer inside the column edge before fade begins */
+
+      /* Vertical white-wash gradient — a translucent white overlay that lets the
+         animated background bleed through. Three control points, interpolated
+         top→bottom:
+           --wash-head-top  : alpha at the TOP of the header band
+           --wash-mid       : SHARED seam — header band's bottom = selected card's top
+           --wash-card-bot  : alpha at the BOTTOM of an expanded/highlighted card
+         Header band always uses head-top→mid; a selected card uses mid→card-bot,
+         so a band stacked above its open card forms one continuous wash. */
+      --wash-head-top: 0.72;
+      --wash-mid:      0.42;
+      --wash-card-bot: 0.00;
     }
     @media (max-width: 640px) {
       :root {
@@ -88,7 +100,13 @@
       content: '';
       position: absolute;
       inset: 0;
-      background: rgba(255, 253, 248, 0);
+      /* Resting state: same gradient shape at zero alpha so the transition to the
+         washed state animates smoothly (color→gradient transitions would snap). */
+      background: linear-gradient(
+        to bottom,
+        rgba(255, 255, 255, 0),
+        rgba(255, 255, 255, 0)
+      );
       pointer-events: none;
       transition: background 300ms ease;
       z-index: 0;
@@ -110,7 +128,13 @@
     .event-row .fade-divider:hover::after,
     .event-row .fade-divider:focus-visible::after,
     .event-row .fade-divider.is-open::after {
-      background: rgba(255, 253, 248, 0.55);
+      /* Vertical white-wash: seam value at top → card-bottom value at bottom.
+         The header band above meets this at --wash-mid, so wash is continuous. */
+      background: linear-gradient(
+        to bottom,
+        rgba(255, 255, 255, var(--wash-mid)),
+        rgba(255, 255, 255, var(--wash-card-bot))
+      );
     }
     .event-row .fade-divider:focus-visible {
       outline: none;  /* the wash acts as the focus indicator */
@@ -118,7 +142,7 @@
     /* On touch devices :hover sticks after tap; keep the wash off unless expanded */
     @media (hover: none), (pointer: coarse) {
       .event-row .fade-divider:hover:not(.is-open)::after {
-        background: rgba(255, 253, 248, 0);
+        background: rgba(255, 255, 255, 0);
       }
     }
     /* Row content sits above the wash */
@@ -288,10 +312,15 @@
       display: grid;
       grid-template-columns: 1fr 1fr 1fr;
       align-items: center;
-      background: rgba(252, 249, 244, 0.72);
+      /* Vertical white-wash: head-top alpha at the top → shared seam (--wash-mid)
+         at the bottom, so the band meets the card wash below it seamlessly. */
+      background: linear-gradient(
+        to bottom,
+        rgba(255, 255, 255, var(--wash-head-top)),
+        rgba(255, 255, 255, var(--wash-mid))
+      );
       backdrop-filter: blur(16px) saturate(1.4);
       -webkit-backdrop-filter: blur(16px) saturate(1.4);
-      box-shadow: 0 1px 0 rgba(160, 148, 132, 0.16);
     }
     .hband .h-slot {
       font-family: 'Inter', system-ui, sans-serif;
@@ -367,6 +396,22 @@
       <label>col-breath</label>
       <input type="range" id="s-colbreath" min="0" max="1" step="0.02" value="1.0">
       <span class="val" id="v-colbreath">1.00</span>
+    </div>
+    <div class="sep-v"></div>
+    <div class="slider-group" title="White-wash — alpha at the TOP of the header band">
+      <label>head top</label>
+      <input type="range" id="s-washtop" min="0" max="1" step="0.02" value="0.72">
+      <span class="val" id="v-washtop">0.72</span>
+    </div>
+    <div class="slider-group" title="White-wash — shared seam: header band bottom = selected card top">
+      <label>seam</label>
+      <input type="range" id="s-washmid" min="0" max="1" step="0.02" value="0.42">
+      <span class="val" id="v-washmid">0.42</span>
+    </div>
+    <div class="slider-group" title="White-wash — alpha at the BOTTOM of an expanded/highlighted card">
+      <label>card bot</label>
+      <input type="range" id="s-washbot" min="0" max="1" step="0.02" value="0.00">
+      <span class="val" id="v-washbot">0.00</span>
     </div>
     <div class="sep-v"></div>
     <label class="toggle" title="Use HDR (extended range) colours for the background">
@@ -763,6 +808,23 @@
     bindSlider('s-flowrot',   'v-flowrot',   2, 'uFlowRot');
     bindSlider('s-colbreath', 'v-colbreath', 2, 'uColBreath');
 
+    // White-wash sliders — pure CSS-var controls (no worker involvement).
+    // Each writes a --wash-* custom property on :root; the header band and the
+    // selected-card wash read them live.
+    const WASH_DEFAULTS = { top: 0.72, mid: 0.42, bot: 0.00 };
+    function bindWash(sid, vid, cssVar) {
+      const s = document.getElementById(sid);
+      const v = document.getElementById(vid);
+      s.addEventListener('input', () => {
+        const val = parseFloat(s.value);
+        v.textContent = val.toFixed(2);
+        document.documentElement.style.setProperty(cssVar, val);
+      });
+    }
+    bindWash('s-washtop', 'v-washtop', '--wash-head-top');
+    bindWash('s-washmid', 'v-washmid', '--wash-mid');
+    bindWash('s-washbot', 'v-washbot', '--wash-card-bot');
+
     document.getElementById('btn-reset').addEventListener('click', () => {
       const set = (sid, vid, val, dec, uniformName) => {
         const s = document.getElementById(sid), v = document.getElementById(vid);
@@ -776,6 +838,16 @@
       set('s-intensity', 'v-intensity', DEFAULTS.intensity, 2, 'uIntensity');
       set('s-flowrot',   'v-flowrot',   DEFAULTS.flowRot,   2, 'uFlowRot');
       set('s-colbreath', 'v-colbreath', DEFAULTS.colBreath, 2, 'uColBreath');
+      // Reset white-wash sliders + their CSS vars
+      const setWash = (sid, vid, val, cssVar) => {
+        const s = document.getElementById(sid), v = document.getElementById(vid);
+        s.value = val;
+        v.textContent = Number(val).toFixed(2);
+        document.documentElement.style.setProperty(cssVar, val);
+      };
+      setWash('s-washtop', 'v-washtop', WASH_DEFAULTS.top, '--wash-head-top');
+      setWash('s-washmid', 'v-washmid', WASH_DEFAULTS.mid, '--wash-mid');
+      setWash('s-washbot', 'v-washbot', WASH_DEFAULTS.bot, '--wash-card-bot');
       // Reset toggles too (HDR text ON by default, HDR bg OFF)
       document.getElementById('t-hdrbg').checked = false;
       document.getElementById('t-hdrtext').checked = true;
