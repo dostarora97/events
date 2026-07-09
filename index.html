@@ -167,6 +167,29 @@
       row-gap: 4px;
     }
     #mode-switch.visible { display: flex; }
+
+    /* Collapse/expand affordance. When collapsed, the whole bar shrinks to a
+       small gear pill anchored top-right; all controls hide. */
+    #mode-switch .dbg-collapse {
+      margin-left: auto;                 /* push to far right when expanded */
+      flex: 0 0 auto;
+      width: 22px; height: 22px; padding: 0;
+      display: inline-flex; align-items: center; justify-content: center;
+      border-radius: 999px; border: 1px solid rgba(180,165,148,0.35);
+      background: rgba(255,255,255,0.5); color: #7a6e63;
+      cursor: pointer; font-size: 12px; line-height: 1;
+    }
+    #mode-switch .dbg-collapse:hover { background: rgba(255,255,255,0.85); color: #4a4238; }
+    #mode-switch.collapsed {
+      left: auto; right: 12px;           /* anchor to top-right, shed full width */
+      width: auto; padding: 5px;
+      gap: 0; justify-content: center;
+      border-radius: 999px;
+    }
+    /* Hide every control while collapsed, except the toggle button */
+    #mode-switch.collapsed > :not(.dbg-collapse) { display: none; }
+    #mode-switch.collapsed .dbg-collapse { margin-left: 0; width: 26px; height: 26px; font-size: 13px; }
+
     #mode-switch .sep-v { width: 1px; height: 18px; background: rgba(180,165,148,0.35); }
     #mode-switch button {
       padding: 5px 12px; border-radius: 999px; border: none;
@@ -325,6 +348,7 @@
     </div>
     <div class="sep-v"></div>
     <button id="btn-reset" title="Reset to defaults">reset</button>
+    <button type="button" id="dbg-collapse" class="dbg-collapse" title="Collapse / expand controls" aria-label="Collapse controls">⌃</button>
   </div>
 
   <main>
@@ -613,6 +637,19 @@
     // Debug controls — only show the top panel when ?debug=true is set
     const DEBUG = new URLSearchParams(location.search).get('debug') === 'true';
     if (DEBUG) document.getElementById('mode-switch').classList.add('visible');
+
+    // Collapse / expand the debug bar. Collapsed → shrinks to a small gear pill
+    // top-right; the toggle glyph flips between chevron (collapse) and gear (expand).
+    (function wireDebugCollapse() {
+      const bar = document.getElementById('mode-switch');
+      const btn = document.getElementById('dbg-collapse');
+      if (!bar || !btn) return;
+      btn.addEventListener('click', () => {
+        const collapsed = bar.classList.toggle('collapsed');
+        btn.textContent = collapsed ? '⚙' : '⌃';
+        btn.setAttribute('aria-label', collapsed ? 'Expand controls' : 'Collapse controls');
+      });
+    })();
 
     const canvas = document.getElementById('bg');
 
