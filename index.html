@@ -265,6 +265,34 @@
       -webkit-mask-image: linear-gradient(to right, black 70%, transparent 100%);
               mask-image: linear-gradient(to right, black 70%, transparent 100%);
     }
+
+    /* Group-by toggle — small frosted pill, fixed bottom-centre. Lets the user
+       switch the secondary grouping between city and time. */
+    .groupby-toggle {
+      position: fixed; bottom: 16px; left: 50%; transform: translateX(-50%); z-index: 20;
+      display: flex; gap: 2px;
+      background: rgba(252, 249, 244, 0.7);
+      backdrop-filter: blur(20px) saturate(1.4);
+      -webkit-backdrop-filter: blur(20px) saturate(1.4);
+      border: 1px solid rgba(160, 148, 132, 0.22);
+      border-radius: 999px;
+      padding: 3px;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+      font-family: 'Inter', system-ui, sans-serif;
+    }
+    .groupby-toggle button {
+      appearance: none; border: none; cursor: pointer;
+      padding: 6px 16px; border-radius: 999px;
+      font-size: 12px; font-weight: 500; letter-spacing: 0.01em;
+      color: #7a6e63; background: transparent;
+      transition: background 0.18s ease, color 0.18s ease;
+    }
+    .groupby-toggle button:hover { color: #4a4238; }
+    .groupby-toggle button[aria-pressed="true"] {
+      background: rgba(255, 253, 248, 0.9);
+      color: #3a3228;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+    }
   </style>
   </style>
 </head>
@@ -342,19 +370,26 @@
         No events.
       </p>
 
+      <!-- Group-by toggle (fixed bottom pill) -->
+      <div class="groupby-toggle" x-show="state === 'ready' && events.length > 0" x-cloak role="group" aria-label="Group events by">
+        <button @click="groupBy = 'city'" :aria-pressed="groupBy === 'city' ? 'true' : 'false'">City</button>
+        <button @click="groupBy = 'time'" :aria-pressed="groupBy === 'time' ? 'true' : 'false'">Time</button>
+      </div>
+
       <!-- Grouped list — one sticky day header + its rows, per group.
            openKey (event.url) is hoisted here so only one row is open across ALL groups. -->
       <template x-if="state === 'ready' && events.length > 0">
         <div x-data="{ openKey: null }">
           <template x-for="group in groups" :key="group.key">
             <section>
-              <!-- Sticky header — city (left) · day (right) -->
+              <!-- Sticky header — secondary label (left) · day (right).
+                   Left is city or time depending on the groupBy toggle. -->
               <header class="sticky-header">
                 <div class="max-w-xl mx-auto px-6 py-3 flex items-center justify-between gap-4">
                   <span class="font-sans text-lg font-semibold text-stone-800 tracking-tight leading-none"
-                        x-text="group.city"></span>
+                        x-text="group.leftLabel"></span>
                   <span class="font-sans text-lg font-semibold text-stone-800 tracking-tight leading-none whitespace-nowrap"
-                        x-text="group.dayLabel"></span>
+                        x-text="group.rightLabel"></span>
                 </div>
               </header>
 
@@ -446,6 +481,7 @@
         state: 'loading',   // 'loading' | 'ready' | 'error'
         events: [],
         error: '',
+        groupBy: 'city',    // 'city' | 'time' — secondary grouping within each day
         async load() {
           try {
             const res = await fetch(window.EVENTS_URL, { cache: 'no-store' });
@@ -495,31 +531,57 @@
           return h * 60 + parseInt(m[2], 10);
         },
 
-        // Events double-grouped by day → city. Day ascending (closest→farthest),
-        // city alphabetical within a day, time ascending within a day+city group.
-        // Each group: { key, city, dayLabel:"Fri 10 Jul", events:[…] }. Computed on the fly.
+        // Events double-grouped: day (primary, ascending) → secondary bucket.
+        // Secondary is chosen by `groupBy`:
+        //   'city' — bucket by city, sorted alphabetically; header = city (left) · day (right)
+        //   'time' — bucket by exact start time, sorted chronologically; header = time (left) · day (right)
+        // Within every bucket, events stay time-ascending. Overall order is
+        // day-ascending then secondary-ascending, i.e. absolute time ascending.
+        // Each group: { key, leftLabel, rightLabel, events }. Computed on the fly.
         get groups() {
-          const dayBuckets = new Map();   // dayKey -> { d, cities: Map(city -> events[]) }
+          const byTime = this.groupBy === 'time';
+          const dayBuckets = new Map();   // dayKey -> { d, subs: Map(subKey -> {label, sortVal, events}) }
+
           for (const ev of this.events) {
             const d = this._parseDate(ev.datetime);
             if (!d) continue;
             const dayKey = d.monthIdx * 100 + d.day;
-            const city = (ev.city || '').trim() || 'Other';
-            if (!dayBuckets.has(dayKey)) dayBuckets.set(dayKey, { d, cities: new Map() });
-            const cities = dayBuckets.get(dayKey).cities;
-            if (!cities.has(city)) cities.set(city, []);
-            cities.get(city).push(ev);
+            if (!dayBuckets.has(dayKey)) dayBuckets.set(dayKey, { d, subs: new Map() });
+            const subs = dayBuckets.get(dayKey).subs;
+
+            // Secondary bucket key + display label + sort value
+            let subKey, label, sortVal;
+            if (byTime) {
+              subKey  = (ev.time || '').trim() || '—';
+              label   = subKey;
+              sortVal = this._parseMinutes(ev.time);
+            } else {
+              subKey  = (ev.city || '').trim() || 'Other';
+              label   = subKey;
+              sortVal = subKey.toLowerCase();
+            }
+            if (!subs.has(subKey)) subs.set(subKey, { label, sortVal, events: [] });
+            subs.get(subKey).events.push(ev);
           }
 
           const out = [];
-          for (const dayKey of [...dayBuckets.keys()].sort((a, b) => a - b)) {   // day ascending
-            const { d, cities } = dayBuckets.get(dayKey);
+          for (const dayKey of [...dayBuckets.keys()].sort((a, b) => a - b)) {  // day ascending
+            const { d, subs } = dayBuckets.get(dayKey);
             const wd = d.weekday ? d.weekday + ' ' : '';
             const dayLabel = `${wd}${d.day} ${this._MONTHS_SHORT[d.monthIdx]}`;
-            for (const city of [...cities.keys()].sort((a, b) => a.localeCompare(b))) {  // city alpha
-              const events = cities.get(city)
+            const ordered = [...subs.values()].sort((a, b) =>
+              typeof a.sortVal === 'number' ? a.sortVal - b.sortVal
+                                            : a.sortVal.localeCompare(b.sortVal)
+            );
+            for (const sub of ordered) {
+              const events = sub.events
                 .sort((a, b) => this._parseMinutes(a.time) - this._parseMinutes(b.time));
-              out.push({ key: `${dayKey}:${city}`, city, dayLabel, events });
+              out.push({
+                key: `${dayKey}:${sub.label}`,
+                leftLabel: sub.label,   // city or time
+                rightLabel: dayLabel,   // always the day
+                events,
+              });
             }
           }
           return out;
