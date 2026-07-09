@@ -235,31 +235,22 @@
     body.hdr-text .text-stone-500 { color: color(display-p3 0.44 0.40 0.36 / 1); } /* tertiary */
     body.hdr-text .text-stone-400 { color: color(display-p3 0.60 0.55 0.51 / 1); } /* muted */
 
-    /* Sticky header — frosted-glass panel: translucent so scrolled content
-       is visible through it, but blurred so text stays readable. Distinct
-       from row highlights (no edge fade) so it reads as chrome.
-       The backdrop only activates when the header becomes 'stuck' (see JS). */
+    /* Sticky day headers — each pins at top:0 and is pushed up by the next day's
+       header (native CSS sticky section-header stacking). Frosted-glass backdrop
+       is always on: translucent + heavy blur so content stays readable while it
+       scrolls behind, distinct from row highlights (no edge fade) so it reads as
+       chrome. */
     .sticky-header {
       position: sticky; top: 0; z-index: 10;
     }
     .sticky-header::before {
       content: '';
       position: absolute; inset: 0;
-      background: rgba(252, 249, 244, 0);
-      backdrop-filter: blur(0px);
-      -webkit-backdrop-filter: blur(0px);
-      border-bottom: 1px solid transparent;
-      z-index: -1;
-      transition: background 200ms ease,
-                  backdrop-filter 200ms ease,
-                  -webkit-backdrop-filter 200ms ease,
-                  border-color 200ms ease;
-    }
-    .sticky-header.is-stuck::before {
       background: rgba(252, 249, 244, 0.55);
       backdrop-filter: blur(24px) saturate(1.5);
       -webkit-backdrop-filter: blur(24px) saturate(1.5);
-      border-bottom-color: rgba(160, 148, 132, 0.18);
+      border-bottom: 1px solid rgba(160, 148, 132, 0.18);
+      z-index: -1;
     }
 
     /* Description preview (collapsed row): show first line only, with a
@@ -328,27 +319,11 @@
 
   <main>
 
-    <!-- Sentinel: 1px element just above the sticky header.
-         When it scrolls out of view, the header is 'stuck' and gets the
-         backdrop treatment via .is-stuck class (see IntersectionObserver below). -->
-    <div id="header-sentinel" aria-hidden="true" style="height: 1px;"></div>
-
-    <!-- Event list + header share one Alpine scope so the header date derives from the data -->
+    <!-- Event list. Header + list repeat per day, all headers sticky. -->
     <div
       x-data="eventsApp()"
       x-init="load()"
     >
-      <!-- Page header (sticky) — date range computed from the loaded events -->
-      <header class="sticky-header">
-        <div class="max-w-xl mx-auto px-6 py-3 flex items-center justify-end">
-          <h1 class="font-sans text-lg font-semibold text-stone-800 tracking-tight leading-none">
-            <span x-text="dateLabel"></span>
-            <span class="text-stone-400 font-normal mx-1">·</span>
-            <span>Bangalore</span>
-          </h1>
-        </div>
-      </header>
-
       <!-- Loading -->
       <p x-show="state === 'loading'" x-cloak
          class="text-sm text-stone-500 font-normal py-10 text-center">
@@ -367,76 +342,90 @@
         No events.
       </p>
 
-      <!-- List -->
+      <!-- Grouped list — one sticky day header + its rows, per group.
+           openKey (event.url) is hoisted here so only one row is open across ALL groups. -->
       <template x-if="state === 'ready' && events.length > 0">
-        <div x-data="{ openIndex: null }">
-          <template x-for="(event, i) in events" :key="event.url || event.title || i">
-            <div class="event-row">
-              <div
-                class="fade-divider cursor-pointer group"
-                :class="{ 'is-open': openIndex === i }"
-                @click="openIndex = (openIndex === i ? null : i)"
-                @keydown.enter.prevent="openIndex = (openIndex === i ? null : i)"
-                @keydown.space.prevent="openIndex = (openIndex === i ? null : i)"
-                role="button"
-                tabindex="0"
-                :aria-expanded="openIndex === i ? 'true' : 'false'"
-              >
-                <!-- Inner text column — reproduces the previous max-w-xl visual -->
-                <div class="row-inner max-w-xl mx-auto px-6 py-5">
-                  <!-- Title row: fixed emoji gutter so titles left-align regardless of emoji presence -->
-                  <div class="flex items-baseline gap-3">
-                    <span class="flex-shrink-0 w-6 text-base text-center" x-text="event.emoji || ''"></span>
-                    <span
-                      class="font-sans text-base font-semibold text-stone-800 leading-snug tracking-tight flex-1"
-                      x-text="event.title || 'Untitled'"
-                    ></span>
-                  </div>
+        <div x-data="{ openKey: null }">
+          <template x-for="group in groups" :key="group.key">
+            <section>
+              <!-- Sticky day header -->
+              <header class="sticky-header">
+                <div class="max-w-xl mx-auto px-6 py-3 flex items-center justify-end">
+                  <h1 class="font-sans text-lg font-semibold text-stone-800 tracking-tight leading-none"
+                      x-text="group.label"></h1>
+                </div>
+              </header>
 
-                  <!-- Subtext — same 6-unit left gutter as title, so time/location left-align with title text -->
-                  <p
-                    x-show="event.time || event.location"
-                    class="mt-2 pl-9 text-xs text-stone-600 font-normal tracking-normal flex items-center flex-wrap gap-x-2.5 gap-y-1"
-                  >
-                    <span x-show="event.time" class="flex items-center gap-1">
-                      <span class="material-symbols-outlined text-stone-500">schedule</span>
-                      <span x-text="event.time"></span>
-                    </span>
-                    <span x-show="event.time && event.location" class="text-stone-400">·</span>
-                    <span x-show="event.location" class="flex items-center gap-1">
-                      <span class="material-symbols-outlined text-stone-500">location_on</span>
-                      <span x-text="event.location"></span>
-                    </span>
-                  </p>
-
-                  <!-- Description preview (collapsed only) — the fading ellipsis
-                       is the affordance signalling "there's more if you tap". -->
-                  <p
-                    x-show="event.description && openIndex !== i"
-                    class="desc-preview mt-2 pl-9 text-sm text-stone-600 font-normal leading-snug"
-                    x-text="event.description"
-                  ></p>
-
-                  <!-- Expanded — grid-template-rows accordion for smooth height + fade -->
+              <!-- That day's events -->
+              <template x-for="event in group.events" :key="event.url || event.title">
+                <div class="event-row">
                   <div
-                    class="accordion pl-9"
-                    :class="{ 'open': openIndex === i && (event.description || event.url) }"
+                    class="fade-divider cursor-pointer group"
+                    :class="{ 'is-open': openKey === event.url }"
+                    @click="openKey = (openKey === event.url ? null : event.url)"
+                    @keydown.enter.prevent="openKey = (openKey === event.url ? null : event.url)"
+                    @keydown.space.prevent="openKey = (openKey === event.url ? null : event.url)"
+                    role="button"
+                    tabindex="0"
+                    :aria-expanded="openKey === event.url ? 'true' : 'false'"
                   >
-                    <div class="accordion-inner">
-                      <p x-show="event.description" class="text-sm text-stone-600 font-normal leading-relaxed" x-text="event.description"></p>
-                      <a
-                        x-show="event.url"
-                        :href="event.url"
-                        target="_blank"
-                        rel="noopener"
-                        @click.stop
-                        class="inline-block mt-2 text-xs text-stone-800 hover:text-stone-800 underline underline-offset-4 decoration-stone-400 hover:decoration-stone-600 transition-colors duration-150"
-                      >More info →</a>
+                    <!-- Inner text column — reproduces the previous max-w-xl visual -->
+                    <div class="row-inner max-w-xl mx-auto px-6 py-5">
+                      <!-- Title row: fixed emoji gutter so titles left-align regardless of emoji presence -->
+                      <div class="flex items-baseline gap-3">
+                        <span class="flex-shrink-0 w-6 text-base text-center" x-text="event.emoji || ''"></span>
+                        <span
+                          class="font-sans text-base font-semibold text-stone-800 leading-snug tracking-tight flex-1"
+                          x-text="event.title || 'Untitled'"
+                        ></span>
+                      </div>
+
+                      <!-- Subtext — same 6-unit left gutter as title, so time/location left-align with title text -->
+                      <p
+                        x-show="event.time || event.location"
+                        class="mt-2 pl-9 text-xs text-stone-600 font-normal tracking-normal flex items-center flex-wrap gap-x-2.5 gap-y-1"
+                      >
+                        <span x-show="event.time" class="flex items-center gap-1">
+                          <span class="material-symbols-outlined text-stone-500">schedule</span>
+                          <span x-text="event.time"></span>
+                        </span>
+                        <span x-show="event.time && event.location" class="text-stone-400">·</span>
+                        <span x-show="event.location" class="flex items-center gap-1">
+                          <span class="material-symbols-outlined text-stone-500">location_on</span>
+                          <span x-text="event.location"></span>
+                        </span>
+                      </p>
+
+                      <!-- Description preview (collapsed only) — the fading ellipsis
+                           is the affordance signalling "there's more if you tap". -->
+                      <p
+                        x-show="event.description && openKey !== event.url"
+                        class="desc-preview mt-2 pl-9 text-sm text-stone-600 font-normal leading-snug"
+                        x-text="event.description"
+                      ></p>
+
+                      <!-- Expanded — grid-template-rows accordion for smooth height + fade -->
+                      <div
+                        class="accordion pl-9"
+                        :class="{ 'open': openKey === event.url && (event.description || event.url) }"
+                      >
+                        <div class="accordion-inner">
+                          <p x-show="event.description" class="text-sm text-stone-600 font-normal leading-relaxed" x-text="event.description"></p>
+                          <a
+                            x-show="event.url"
+                            :href="event.url"
+                            target="_blank"
+                            rel="noopener"
+                            @click.stop
+                            class="inline-block mt-2 text-xs text-stone-800 hover:text-stone-800 underline underline-offset-4 decoration-stone-400 hover:decoration-stone-600 transition-colors duration-150"
+                          >More info →</a>
+                        </div>
+                      </div>
                     </div>
                   </div>
                 </div>
-              </div>
-            </div>
+              </template>
+            </section>
           </template>
         </div>
       </template>
@@ -472,59 +461,83 @@
           }
         },
 
-        // Header date label, derived from the events themselves so it can never
-        // drift from the data. Parses each event's `datetime` (e.g.
-        // "10th July, Friday, 11:00 AM"), then formats a range:
-        //   single day  -> "10 Jul"
-        //   same month   -> "10–12 Jul"
-        //   diff months  -> "30 Jul – 2 Aug"
-        get dateLabel() {
-          const MONTHS = ['January','February','March','April','May','June','July',
-                          'August','September','October','November','December'];
-          const SHORT  = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+        // ── Date/time helpers, shared by dateLabel + groups ──────────────
+        // All derived from the data so nothing is ever hardcoded.
+        _MONTHS: ['January','February','March','April','May','June','July',
+                  'August','September','October','November','December'],
+        _MONTHS_SHORT: ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'],
+        _WEEKDAY_SHORT: {
+          sunday:'Sun', monday:'Mon', tuesday:'Tue', wednesday:'Wed',
+          thursday:'Thu', friday:'Fri', saturday:'Sat',
+        },
 
+        // Parse "10th July, Friday, 11:00 AM" → {day, monthIdx, weekday} (or null)
+        _parseDate(datetime) {
+          const s = datetime || '';
+          const dm = s.match(/(\d{1,2})(?:st|nd|rd|th)?\s+([A-Za-z]+)/);
+          if (!dm) return null;
+          const day = parseInt(dm[1], 10);
+          const monthIdx = this._MONTHS.findIndex(m => m.toLowerCase() === dm[2].toLowerCase());
+          if (monthIdx === -1) return null;
+          const wm = s.match(/\b(Sunday|Monday|Tuesday|Wednesday|Thursday|Friday|Saturday)\b/i);
+          const weekday = wm ? this._WEEKDAY_SHORT[wm[1].toLowerCase()] : '';
+          return { day, monthIdx, weekday };
+        },
+
+        // Parse "11:00 AM" → minutes since midnight (missing time sorts last)
+        _parseMinutes(time) {
+          const m = (time || '').match(/(\d{1,2}):(\d{2})\s*([AP]M)/i);
+          if (!m) return 24 * 60 + 1;
+          let h = parseInt(m[1], 10) % 12;
+          if (/pm/i.test(m[3])) h += 12;
+          return h * 60 + parseInt(m[2], 10);
+        },
+
+        // Events grouped by day, groups ascending, events within a group ascending by time.
+        // Each group: { key, label:"Fri 10 Jul", events:[…] }. Computed on the fly.
+        get groups() {
+          const buckets = new Map();
+          for (const ev of this.events) {
+            const d = this._parseDate(ev.datetime);
+            if (!d) continue;
+            const key = d.monthIdx * 100 + d.day;
+            if (!buckets.has(key)) {
+              const wd = d.weekday ? d.weekday + ' ' : '';
+              buckets.set(key, {
+                key,
+                label: `${wd}${d.day} ${this._MONTHS_SHORT[d.monthIdx]}`,
+                events: [],
+              });
+            }
+            buckets.get(key).events.push(ev);
+          }
+          const groups = [...buckets.values()].sort((a, b) => a.key - b.key);
+          for (const g of groups) {
+            g.events.sort((a, b) => this._parseMinutes(a.time) - this._parseMinutes(b.time));
+          }
+          return groups;
+        },
+
+        // Overall date range — used only for the browser tab <title>.
+        //   single day -> "10 Jul", same month -> "10–12 Jul", else "30 Jul – 2 Aug"
+        get dateLabel() {
           const parsed = this.events
-            .map(e => {
-              const m = (e.datetime || '').match(/(\d{1,2})(?:st|nd|rd|th)?\s+([A-Za-z]+)/);
-              if (!m) return null;
-              const day = parseInt(m[1], 10);
-              const monthIdx = MONTHS.findIndex(mm => mm.toLowerCase() === m[2].toLowerCase());
-              if (monthIdx === -1) return null;
-              return { day, monthIdx };
-            })
+            .map(e => this._parseDate(e.datetime))
             .filter(Boolean)
             .sort((a, b) => a.monthIdx - b.monthIdx || a.day - b.day);
-
-          if (parsed.length === 0) return 'Bengaluru events';  // graceful fallback
-
-          const first = parsed[0];
-          const last  = parsed[parsed.length - 1];
-
+          if (parsed.length === 0) return 'Bengaluru events';
+          const first = parsed[0], last = parsed[parsed.length - 1];
+          const S = this._MONTHS_SHORT;
           if (first.day === last.day && first.monthIdx === last.monthIdx) {
-            return `${first.day} ${SHORT[first.monthIdx]}`;
+            return `${first.day} ${S[first.monthIdx]}`;
           }
           if (first.monthIdx === last.monthIdx) {
-            return `${first.day}–${last.day} ${SHORT[first.monthIdx]}`;
+            return `${first.day}–${last.day} ${S[first.monthIdx]}`;
           }
-          return `${first.day} ${SHORT[first.monthIdx]} – ${last.day} ${SHORT[last.monthIdx]}`;
+          return `${first.day} ${S[first.monthIdx]} – ${last.day} ${S[last.monthIdx]}`;
         },
       };
     }
-
-    // Sticky-header 'stuck' detection via a sentinel above the header.
-    // When the sentinel scrolls out of view, the header is docked to top:0 and
-    // we apply .is-stuck to activate the frosted-glass backdrop.
-    // Uses IntersectionObserver (single event per crossing, no scroll listener).
-    (function stickyHeaderObserver() {
-      const sentinel = document.getElementById('header-sentinel');
-      const header   = document.querySelector('.sticky-header');
-      if (!sentinel || !header || !('IntersectionObserver' in window)) return;
-      const io = new IntersectionObserver(
-        ([entry]) => header.classList.toggle('is-stuck', !entry.isIntersecting),
-        { threshold: 0 }
-      );
-      io.observe(sentinel);
-    })();
   </script>
 
   <script type="module">
