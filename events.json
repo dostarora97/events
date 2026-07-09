@@ -6,7 +6,8 @@
     "description": "Simran Nigam trades brush for chisel in a solo show of hand-engraved wood, carving fantastical flora and fauna at Sublime Galleria",
     "location": "Sublime Galleria, UB City, Ashok Nagar",
     "url": "https://puttingscene.com/events/5086?external=true",
-    "time": "11:00 AM"
+    "time": "11:00 AM",
+    "city": "Bangalore"
   },
   {
     "emoji": "🎬",
@@ -15,7 +16,8 @@
     "description": "A three-day art-house festival where club members screen the films they love most, from Buñuel and Ray to Dreyer and Naruse",
     "location": "BlrDesignCenter, Ashok Nagar",
     "url": "https://puttingscene.com/events/5090?external=true",
-    "time": "7:00 PM"
+    "time": "7:00 PM",
+    "city": "Bangalore"
   },
   {
     "emoji": "🌿",
@@ -24,7 +26,8 @@
     "description": "A guided morning of nature immersion at NGMA Bengaluru, tuning into the greenery and stories of the landscape around you",
     "location": "National Gallery of Modern Art, Bengaluru",
     "url": "https://puttingscene.com/events/5079?external=true",
-    "time": "11:00 AM"
+    "time": "11:00 AM",
+    "city": "Bangalore"
   },
   {
     "emoji": "🐕",
@@ -33,7 +36,8 @@
     "description": "Screening of Oslo: A Tail of Promise, the true story of a Siberian husky and a woman's journey of belonging, with a filmmakers' chat to follow",
     "location": "Bangalore International Centre, Domlur",
     "url": "https://puttingscene.com/events/5036?external=true",
-    "time": "11:00 AM"
+    "time": "11:00 AM",
+    "city": "Bangalore"
   },
   {
     "emoji": "🧀",
@@ -42,6 +46,7 @@
     "description": "A cheese canvas painting workshop where your palette is fine cheese from Melchior and your finished artwork is entirely edible, paired with Grover Zampa wine",
     "location": "The Humming Tree, Indiranagar",
     "url": "https://puttingscene.com/events/5098?external=true",
-    "time": "4:00 PM"
+    "time": "4:00 PM",
+    "city": "Bangalore"
   }
 ]

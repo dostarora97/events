@@ -348,11 +348,13 @@
         <div x-data="{ openKey: null }">
           <template x-for="group in groups" :key="group.key">
             <section>
-              <!-- Sticky day header -->
+              <!-- Sticky header — city (left) · day (right) -->
               <header class="sticky-header">
-                <div class="max-w-xl mx-auto px-6 py-3 flex items-center justify-end">
-                  <h1 class="font-sans text-lg font-semibold text-stone-800 tracking-tight leading-none"
-                      x-text="group.label"></h1>
+                <div class="max-w-xl mx-auto px-6 py-3 flex items-center justify-between gap-4">
+                  <span class="font-sans text-lg font-semibold text-stone-800 tracking-tight leading-none"
+                        x-text="group.city"></span>
+                  <span class="font-sans text-lg font-semibold text-stone-800 tracking-tight leading-none whitespace-nowrap"
+                        x-text="group.dayLabel"></span>
                 </div>
               </header>
 
@@ -493,29 +495,34 @@
           return h * 60 + parseInt(m[2], 10);
         },
 
-        // Events grouped by day, groups ascending, events within a group ascending by time.
-        // Each group: { key, label:"Fri 10 Jul", events:[…] }. Computed on the fly.
+        // Events double-grouped by day → city. Day ascending (closest→farthest),
+        // city alphabetical within a day, time ascending within a day+city group.
+        // Each group: { key, city, dayLabel:"Fri 10 Jul", events:[…] }. Computed on the fly.
         get groups() {
-          const buckets = new Map();
+          const dayBuckets = new Map();   // dayKey -> { d, cities: Map(city -> events[]) }
           for (const ev of this.events) {
             const d = this._parseDate(ev.datetime);
             if (!d) continue;
-            const key = d.monthIdx * 100 + d.day;
-            if (!buckets.has(key)) {
-              const wd = d.weekday ? d.weekday + ' ' : '';
-              buckets.set(key, {
-                key,
-                label: `${wd}${d.day} ${this._MONTHS_SHORT[d.monthIdx]}`,
-                events: [],
-              });
+            const dayKey = d.monthIdx * 100 + d.day;
+            const city = (ev.city || '').trim() || 'Other';
+            if (!dayBuckets.has(dayKey)) dayBuckets.set(dayKey, { d, cities: new Map() });
+            const cities = dayBuckets.get(dayKey).cities;
+            if (!cities.has(city)) cities.set(city, []);
+            cities.get(city).push(ev);
+          }
+
+          const out = [];
+          for (const dayKey of [...dayBuckets.keys()].sort((a, b) => a - b)) {   // day ascending
+            const { d, cities } = dayBuckets.get(dayKey);
+            const wd = d.weekday ? d.weekday + ' ' : '';
+            const dayLabel = `${wd}${d.day} ${this._MONTHS_SHORT[d.monthIdx]}`;
+            for (const city of [...cities.keys()].sort((a, b) => a.localeCompare(b))) {  // city alpha
+              const events = cities.get(city)
+                .sort((a, b) => this._parseMinutes(a.time) - this._parseMinutes(b.time));
+              out.push({ key: `${dayKey}:${city}`, city, dayLabel, events });
             }
-            buckets.get(key).events.push(ev);
           }
-          const groups = [...buckets.values()].sort((a, b) => a.key - b.key);
-          for (const g of groups) {
-            g.events.sort((a, b) => this._parseMinutes(a.time) - this._parseMinutes(b.time));
-          }
-          return groups;
+          return out;
         },
 
         // Overall date range — used only for the browser tab <title>.
