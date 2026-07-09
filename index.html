@@ -261,13 +261,15 @@
     body.hdr-text .text-stone-500 { color: color(display-p3 0.44 0.40 0.36 / 1); } /* tertiary */
     body.hdr-text .text-stone-400 { color: color(display-p3 0.60 0.55 0.51 / 1); } /* muted */
 
-    /* Sticky day headers — each pins at top:0 and is pushed up by the next day's
-       header (native CSS sticky section-header stacking). Frosted-glass backdrop
-       is always on: translucent + heavy blur so content stays readable while it
-       scrolls behind, distinct from row highlights (no edge fade) so it reads as
-       chrome. */
+    /* Sticky section headers — one per nesting level. Each pins for its run
+       because its containing block is the <section> spanning that run. Nested
+       levels get a cumulative `top` (depth × --hdr-h) and shallow-over-deep
+       z-index, both set inline via stickyStyle(node). Frosted-glass backdrop is
+       always on: translucent + heavy blur so content stays readable behind. */
+    :root { --hdr-h: 3rem; }   /* single-line header height (py-3 + lg line) */
+    .lvl { }                    /* nesting section — keep default overflow:visible */
     .sticky-header {
-      position: sticky; top: 0; z-index: 10;
+      position: sticky; top: 0; z-index: 10;   /* top & z overridden inline per level */
     }
     .sticky-header::before {
       content: '';
@@ -376,93 +378,97 @@
         No events.
       </p>
 
-      <!-- Grouped list — one sticky day header + its rows, per group.
+      <!-- Grouped list — nested sticky sections (bounded depth 2).
+           Each nesting level's header pins for its run (own containing block).
            openKey (event.url) is hoisted here so only one row is open across ALL groups. -->
       <template x-if="state === 'ready' && events.length > 0">
         <div x-data="{ openKey: null }">
-          <template x-for="group in groups" :key="group.key">
-            <section>
-              <!-- Sticky header — three slots (left · mid · right) driven by the
-                   active preset. Null slots render empty but keep their column. -->
-              <header class="sticky-header">
+          <template x-for="g0 in groups" :key="g0.key">
+            <section class="lvl">
+              <!-- Level-0 sticky header -->
+              <header class="sticky-header" :style="stickyStyle(g0)">
                 <div class="max-w-xl mx-auto px-6 py-3 grid grid-cols-3 items-center gap-3">
-                  <span class="font-sans text-lg font-semibold text-stone-800 tracking-tight leading-none text-left"
-                        x-text="group.slotLabels[0]"></span>
-                  <span class="font-sans text-lg font-semibold text-stone-800 tracking-tight leading-none text-center whitespace-nowrap"
-                        x-text="group.slotLabels[1]"></span>
-                  <span class="font-sans text-lg font-semibold text-stone-800 tracking-tight leading-none text-right whitespace-nowrap"
-                        x-text="group.slotLabels[2]"></span>
+                  <span class="font-sans text-lg font-semibold text-stone-800 tracking-tight leading-none text-left" x-text="g0.slot[0]"></span>
+                  <span class="font-sans text-lg font-semibold text-stone-800 tracking-tight leading-none text-center whitespace-nowrap" x-text="g0.slot[1]"></span>
+                  <span class="font-sans text-lg font-semibold text-stone-800 tracking-tight leading-none text-right whitespace-nowrap" x-text="g0.slot[2]"></span>
                 </div>
               </header>
 
-              <!-- That day's events -->
-              <template x-for="event in group.events" :key="event.url || event.title">
-                <div class="event-row">
-                  <div
-                    class="fade-divider cursor-pointer group"
-                    :class="{ 'is-open': openKey === event.url }"
-                    @click="openKey = (openKey === event.url ? null : event.url)"
-                    @keydown.enter.prevent="openKey = (openKey === event.url ? null : event.url)"
-                    @keydown.space.prevent="openKey = (openKey === event.url ? null : event.url)"
-                    role="button"
-                    tabindex="0"
-                    :aria-expanded="openKey === event.url ? 'true' : 'false'"
-                  >
-                    <!-- Inner text column — reproduces the previous max-w-xl visual -->
-                    <div class="row-inner max-w-xl mx-auto px-6 py-5">
-                      <!-- Title row: fixed emoji gutter so titles left-align regardless of emoji presence -->
-                      <div class="flex items-baseline gap-3">
-                        <span class="flex-shrink-0 w-6 text-base text-center" x-text="event.emoji || ''"></span>
-                        <span
-                          class="font-sans text-base font-semibold text-stone-800 leading-snug tracking-tight flex-1"
-                          x-text="event.title || 'Untitled'"
-                        ></span>
-                      </div>
-
-                      <!-- Subtext — same 6-unit left gutter as title, so time/location left-align with title text -->
-                      <p
-                        x-show="event.time || event.location"
-                        class="mt-2 pl-9 text-xs text-stone-600 font-normal tracking-normal flex items-center flex-wrap gap-x-2.5 gap-y-1"
-                      >
-                        <span x-show="event.time" class="flex items-center gap-1">
-                          <span class="material-symbols-outlined text-stone-500">schedule</span>
-                          <span x-text="event.time"></span>
-                        </span>
-                        <span x-show="event.time && event.location" class="text-stone-400">·</span>
-                        <span x-show="event.location" class="flex items-center gap-1">
-                          <span class="material-symbols-outlined text-stone-500">location_on</span>
-                          <span x-text="event.location"></span>
-                        </span>
-                      </p>
-
-                      <!-- Description preview (collapsed only) — the fading ellipsis
-                           is the affordance signalling "there's more if you tap". -->
-                      <p
-                        x-show="event.description && openKey !== event.url"
-                        class="desc-preview mt-2 pl-9 text-sm text-stone-600 font-normal leading-snug"
-                        x-text="event.description"
-                      ></p>
-
-                      <!-- Expanded — grid-template-rows accordion for smooth height + fade -->
-                      <div
-                        class="accordion pl-9"
-                        :class="{ 'open': openKey === event.url && (event.description || event.url) }"
-                      >
-                        <div class="accordion-inner">
-                          <p x-show="event.description" class="text-sm text-stone-600 font-normal leading-relaxed" x-text="event.description"></p>
-                          <a
-                            x-show="event.url"
-                            :href="event.url"
-                            target="_blank"
-                            rel="noopener"
-                            @click.stop
-                            class="inline-block mt-2 text-xs text-stone-800 hover:text-stone-800 underline underline-offset-4 decoration-stone-400 hover:decoration-stone-600 transition-colors duration-150"
-                          >More info →</a>
+              <!-- Leaf at level 0 (single-nesting presets: D·T, T·D) -->
+              <template x-if="g0.leaf">
+                <template x-for="row in g0.rows" :key="row.ev.url || row.ev.title">
+                  <div class="event-row" x-data="{ ev: row.ev, rowSlots: row.rowSlots }">
+                    <div class="fade-divider cursor-pointer group"
+                         :class="{ 'is-open': openKey === ev.url }"
+                         @click="openKey = (openKey === ev.url ? null : ev.url)"
+                         @keydown.enter.prevent="openKey = (openKey === ev.url ? null : ev.url)"
+                         @keydown.space.prevent="openKey = (openKey === ev.url ? null : ev.url)"
+                         role="button" tabindex="0" :aria-expanded="openKey === ev.url ? 'true' : 'false'">
+                      <div class="row-inner max-w-xl mx-auto px-6 py-5">
+                        <div class="flex items-baseline gap-3">
+                          <span class="flex-shrink-0 w-6 text-base text-center" x-text="ev.emoji || ''"></span>
+                          <span class="font-sans text-base font-semibold text-stone-800 leading-snug tracking-tight flex-1" x-text="ev.title || 'Untitled'"></span>
+                        </div>
+                        <p x-show="ev.time || ev.location" class="mt-2 pl-9 text-xs text-stone-600 font-normal tracking-normal flex items-center flex-wrap gap-x-2.5 gap-y-1">
+                          <span x-show="ev.time" class="flex items-center gap-1"><span class="material-symbols-outlined text-stone-500">schedule</span><span x-text="ev.time"></span></span>
+                          <span x-show="ev.time && ev.location" class="text-stone-400">·</span>
+                          <span x-show="ev.location" class="flex items-center gap-1"><span class="material-symbols-outlined text-stone-500">location_on</span><span x-text="ev.location"></span></span>
+                        </p>
+                        <p x-show="ev.description && openKey !== ev.url" class="desc-preview mt-2 pl-9 text-sm text-stone-600 font-normal leading-snug" x-text="ev.description"></p>
+                        <div class="accordion pl-9" :class="{ 'open': openKey === ev.url && (ev.description || ev.url) }">
+                          <div class="accordion-inner">
+                            <p x-show="ev.description" class="text-sm text-stone-600 font-normal leading-relaxed" x-text="ev.description"></p>
+                            <a x-show="ev.url" :href="ev.url" target="_blank" rel="noopener" @click.stop class="inline-block mt-2 text-xs text-stone-800 hover:text-stone-800 underline underline-offset-4 decoration-stone-400 hover:decoration-stone-600 transition-colors duration-150">More info →</a>
+                          </div>
                         </div>
                       </div>
                     </div>
                   </div>
-                </div>
+                </template>
+              </template>
+
+              <!-- Nested children at level 1 (multi-nesting preset: C·D·T) -->
+              <template x-if="!g0.leaf">
+                <template x-for="g1 in g0.children" :key="g1.key">
+                  <section class="lvl">
+                    <header class="sticky-header" :style="stickyStyle(g1)">
+                      <div class="max-w-xl mx-auto px-6 py-3 grid grid-cols-3 items-center gap-3">
+                        <span class="font-sans text-lg font-semibold text-stone-800 tracking-tight leading-none text-left" x-text="g1.slot[0]"></span>
+                        <span class="font-sans text-lg font-semibold text-stone-800 tracking-tight leading-none text-center whitespace-nowrap" x-text="g1.slot[1]"></span>
+                        <span class="font-sans text-lg font-semibold text-stone-800 tracking-tight leading-none text-right whitespace-nowrap" x-text="g1.slot[2]"></span>
+                      </div>
+                    </header>
+                    <template x-for="row in g1.rows" :key="row.ev.url || row.ev.title">
+                      <div class="event-row" x-data="{ ev: row.ev, rowSlots: row.rowSlots }">
+                        <div class="fade-divider cursor-pointer group"
+                             :class="{ 'is-open': openKey === ev.url }"
+                             @click="openKey = (openKey === ev.url ? null : ev.url)"
+                             @keydown.enter.prevent="openKey = (openKey === ev.url ? null : ev.url)"
+                             @keydown.space.prevent="openKey = (openKey === ev.url ? null : ev.url)"
+                             role="button" tabindex="0" :aria-expanded="openKey === ev.url ? 'true' : 'false'">
+                          <div class="row-inner max-w-xl mx-auto px-6 py-5">
+                            <div class="flex items-baseline gap-3">
+                              <span class="flex-shrink-0 w-6 text-base text-center" x-text="ev.emoji || ''"></span>
+                              <span class="font-sans text-base font-semibold text-stone-800 leading-snug tracking-tight flex-1" x-text="ev.title || 'Untitled'"></span>
+                            </div>
+                            <p x-show="ev.time || ev.location" class="mt-2 pl-9 text-xs text-stone-600 font-normal tracking-normal flex items-center flex-wrap gap-x-2.5 gap-y-1">
+                              <span x-show="ev.time" class="flex items-center gap-1"><span class="material-symbols-outlined text-stone-500">schedule</span><span x-text="ev.time"></span></span>
+                              <span x-show="ev.time && ev.location" class="text-stone-400">·</span>
+                              <span x-show="ev.location" class="flex items-center gap-1"><span class="material-symbols-outlined text-stone-500">location_on</span><span x-text="ev.location"></span></span>
+                            </p>
+                            <p x-show="ev.description && openKey !== ev.url" class="desc-preview mt-2 pl-9 text-sm text-stone-600 font-normal leading-snug" x-text="ev.description"></p>
+                            <div class="accordion pl-9" :class="{ 'open': openKey === ev.url && (ev.description || ev.url) }">
+                              <div class="accordion-inner">
+                                <p x-show="ev.description" class="text-sm text-stone-600 font-normal leading-relaxed" x-text="ev.description"></p>
+                                <a x-show="ev.url" :href="ev.url" target="_blank" rel="noopener" @click.stop class="inline-block mt-2 text-xs text-stone-800 hover:text-stone-800 underline underline-offset-4 decoration-stone-400 hover:decoration-stone-600 transition-colors duration-150">More info →</a>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </template>
+                  </section>
+                </template>
               </template>
             </section>
           </template>
@@ -580,29 +586,115 @@
           };
         },
 
-        // Events grouped into sections. A section = one distinct combination of
-        // the active preset's NON-NULL display fields, so every shown slot always
-        // carries a real value. Sort uses the preset's own `sort` list (independent
-        // of the display slot order). Each group: { key, slotLabels:[l,m,r], events }.
-        get groups() {
-          const preset = this._activePreset();
-          const shown  = preset.slots.filter(Boolean);   // non-null display fields
-          const sorted = [...this.events].sort(this._comparator(preset.sort));
+        // Which slot index (0=left,1=mid,2=right) a field occupies in the active preset.
+        _slotFor(field) { return this._activePreset().slots.indexOf(field); },
 
-          const sections = new Map();   // composite key of shown-field keys -> group
-          for (const ev of sorted) {
-            const sectionKey = shown.map(f => this._FIELDS[f].keyOf(ev, this)).join('|');
-            if (!sections.has(sectionKey)) {
-              sections.set(sectionKey, {
-                key: `${preset.id}:${sectionKey}`,
-                // one label per slot position; null slot -> '' (renders empty)
-                slotLabels: preset.slots.map(f => f ? this._FIELDS[f].labelOf(ev, this) : ''),
-                events: [],
-              });
-            }
-            sections.get(sectionKey).events.push(ev);
+        // Build a 3-slot label array with only `field` filled at its slot position.
+        _slotLabels(field, ev) {
+          const labels = ['', '', ''];
+          const i = this._slotFor(field);
+          if (i >= 0) labels[i] = this._FIELDS[field].labelOf(ev, this);
+          return labels;
+        },
+
+        // Events grouped into a NESTED TREE for the sticky-rail effect.
+        //
+        // Nesting levels = the preset's `sort` fields that are shown in a slot AND
+        // form contiguous runs, EXCEPT the most-granular field which stays per-row
+        // in the leaf. Each nesting level becomes a <section> whose sticky header
+        // pins for that run; the per-row field's label is shown on each row with
+        // consecutive-duplicate blanking. Run-forming field pins wherever its slot
+        // sits (e.g. T·D: day forms runs and is shown on the right → right pins).
+        //
+        // Node: { key, depth, z, slot:[l,m,r], leaf, children?|events? }
+        //   leaf events each carry `_rowSlots:[l,m,r]` (per-row field, deduped).
+        get groups() {
+          const preset  = this._activePreset();
+          const shownSort = preset.sort.filter(f => this._slotFor(f) >= 0);  // shown ∩ sort, in sort order
+          const sorted   = [...this.events].sort(this._comparator(preset.sort));
+
+          // No shown field ⇒ nothing to group by: single flat leaf, all slots per-row.
+          if (shownSort.length === 0) {
+            return [this._makeLeaf(sorted, [], 0, `${preset.id}:flat`, preset.slots.filter(Boolean))];
           }
-          return [...sections.values()];
+
+          // Last shown-sort field is the per-row field; the rest are nesting levels.
+          const perRowField = shownSort[shownSort.length - 1];
+          const nestFields  = shownSort.slice(0, -1);
+
+          // If there are no nesting fields, the per-row field is the only one: it
+          // still forms runs, so make IT the single nesting level (so it pins) and
+          // there's no separate per-row field.
+          if (nestFields.length === 0) {
+            return this._buildLevel(sorted, [perRowField], 0, preset.id, null);
+          }
+          return this._buildLevel(sorted, nestFields, 0, preset.id, perRowField);
+        },
+
+        // Recursively partition `events` by nestFields[depth]; leaves attach rows
+        // whose per-row field (if any) is deduped consecutively.
+        _buildLevel(events, nestFields, depth, keyPrefix, perRowField) {
+          const field = nestFields[depth];
+          const out = [];
+          let bucket = null, lastKey = Symbol();
+          for (const ev of events) {
+            const k = this._FIELDS[field].keyOf(ev, this);
+            if (k !== lastKey) {
+              lastKey = k;
+              bucket = { field, first: ev, events: [] };
+              out.push(bucket);
+            }
+            bucket.events.push(ev);
+          }
+          return out.map((b, i) => {
+            const node = {
+              key: `${keyPrefix}:${depth}:${i}`,
+              depth, z: 30 - depth * 10,
+              slot: this._slotLabels(field, b.first),
+            };
+            const deeper = depth + 1 < nestFields.length;
+            if (deeper) {
+              node.leaf = false;
+              node.children = this._buildLevel(b.events, nestFields, depth + 1, node.key, perRowField);
+            } else {
+              // Deepest nesting level: keep this node's own field label in the header
+              // and attach its rows carrying the per-row field (deduped).
+              node.leaf = true;
+              node.rows = this._makeRows(b.events, perRowField ? [perRowField] : []);
+            }
+            return node;
+          });
+        },
+
+        // Build deduped per-row slot label arrays for the given per-row fields.
+        _makeRows(events, perRowFields) {
+          const prev = {};
+          return events.map(ev => {
+            const rowSlots = ['', '', ''];
+            for (const f of perRowFields) {
+              const i = this._slotFor(f);
+              if (i < 0) continue;
+              const cur = this._FIELDS[f].keyOf(ev, this);
+              if (cur !== prev[f]) {                       // consecutive-duplicate blanking
+                rowSlots[i] = this._FIELDS[f].labelOf(ev, this);
+                prev[f] = cur;
+              }
+            }
+            return { ev, rowSlots };
+          });
+        },
+
+        // Flat fallback leaf (no shown grouping field): one headerless node whose
+        // rows carry all shown fields per-row (deduped).
+        _makeLeaf(events, _unused, depth, key, perRowFields) {
+          return { key, depth, z: 30 - depth * 10, slot: ['', '', ''], leaf: true,
+                   rows: this._makeRows(events, perRowFields) };
+        },
+
+        // Inline style for a sticky header at a given depth: cumulative top offset
+        // (so nested headers stack) + shallow-over-deep z-index.
+        stickyStyle(node) {
+          return `top: calc(var(--hdr-h) * ${node.depth}); z-index: ${node.z};`;
         },
 
         // Overall date range — used only for the browser tab <title>.
